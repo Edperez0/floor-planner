@@ -1,0 +1,15 @@
+IMPORTANT: Add your floor plan image here!
+
+1. Save your floor plan image to this folder (public/)
+2. Name it exactly: floorplan.png
+3. Supported formats: PNG, JPG, JPEG
+
+The file should be at:
+floor-planner/public/floorplan.png
+
+Your floor plan dimensions for reference:
+- Living/Dining/Kitchen: 23'4" × 29'3"
+- M. Bedroom: 11'5" × 12'0"
+- Bedroom: 12'5" × 12'6"
+
+Use one of these dimensions when calibrating the scale!
