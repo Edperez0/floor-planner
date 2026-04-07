@@ -1,6 +1,6 @@
 # Interactive Floor Planner
 
-A React-based web application for planning furniture layouts on your floor plan. Features exact scale calibration and drag-and-drop furniture management.
+A React-based web application for planning furniture layouts on your floor plan. Features exact scale calibration, drag-and-drop furniture management, and file upload support.
 
 ## Features
 
