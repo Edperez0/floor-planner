@@ -1,7 +1,7 @@
 .furniture-panel {
   height: 100%;
   width: 100%;
-  max-width: 330px;
+  max-width: min(330px, 100%);
   background: white;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -227,4 +227,24 @@
   flex-shrink: 0;
   margin-top: auto;
   margin-bottom: 8px;
+}
+
+/* Short viewports: give presets + canvas more room; MREC scales down slightly */
+@media (max-height: 820px) and (min-width: 901px) {
+  .presets-scroll {
+    max-height: min(200px, 32vh);
+  }
+
+  .furniture-panel .ad-slot--sidebar {
+    width: min(300px, 100%);
+    height: min(220px, 28vh);
+    max-height: min(220px, 28vh);
+  }
+}
+
+/* Tablet landscape two-column: tighter panel padding */
+@media (max-width: 1100px) and (min-width: 901px) {
+  .panel-section {
+    padding: 14px 16px;
+  }
 }
