@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Image as KonvaImage } from 'react-konva';
 import useImage from './hooks/useImage';
+import { useFurnitureUndoRedo } from './hooks/useFurnitureUndoRedo';
 import Toolbar from './components/Toolbar';
 import FurnitureItem from './components/FurnitureItem';
 import CalibrationLine from './components/CalibrationLine';
@@ -12,7 +13,15 @@ import './App.css';
 function App() {
   const [floorPlanUrl, setFloorPlanUrl] = useState(null);
   const [floorPlanImage] = useImage(floorPlanUrl);
-  const [furniture, setFurniture] = useState([]);
+  const {
+    furniture,
+    commitFurniture,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    resetAll: resetFurnitureUndo,
+  } = useFurnitureUndoRedo();
   const [selectedId, setSelectedId] = useState(null);
   const [pixelsPerInch, setPixelsPerInch] = useState(null); // Core calibration value
   const [isCalibrating, setIsCalibrating] = useState(false);
@@ -168,7 +177,7 @@ function App() {
       realDepth: { feet: depthFeet, inches: depthInches },
     };
 
-    setFurniture([...furniture, newItem]);
+    commitFurniture((prev) => [...prev, newItem]);
   };
 
   // Update furniture dimensions
@@ -176,37 +185,42 @@ function App() {
     const totalWidthInches = widthFeet * 12 + widthInches;
     const totalDepthInches = depthFeet * 12 + depthInches;
 
-    setFurniture(furniture.map(item =>
-      item.id === id
-        ? {
-            ...item,
-            width: totalWidthInches * pixelsPerInch,
-            height: totalDepthInches * pixelsPerInch,
-            realWidth: { feet: widthFeet, inches: widthInches },
-            realDepth: { feet: depthFeet, inches: depthInches },
-          }
-        : item
-    ));
+    commitFurniture((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              width: totalWidthInches * pixelsPerInch,
+              height: totalDepthInches * pixelsPerInch,
+              realWidth: { feet: widthFeet, inches: widthInches },
+              realDepth: { feet: depthFeet, inches: depthInches },
+            }
+          : item
+      )
+    );
   };
 
-  const deleteFurniture = useCallback((id) => {
-    setFurniture((prev) => prev.filter((item) => item.id !== id));
-    setSelectedId((sel) => (sel === id ? null : sel));
-  }, []);
+  const deleteFurniture = useCallback(
+    (id) => {
+      commitFurniture((prev) => prev.filter((item) => item.id !== id));
+      setSelectedId((sel) => (sel === id ? null : sel));
+    },
+    [commitFurniture]
+  );
 
   const hasCanvasContent = !!floorPlanUrl || furniture.length > 0;
 
   const confirmClearCanvas = useCallback(() => {
     localStorage.removeItem('floorPlanImage');
     setFloorPlanUrl(null);
-    setFurniture([]);
+    resetFurnitureUndo();
     setSelectedId(null);
     setPixelsPerInch(null);
     setIsCalibrating(false);
     setCalibrationLine(null);
     setShowCalibrationModal(false);
     setShowClearConfirm(false);
-  }, []);
+  }, [resetFurnitureUndo]);
 
   const handleExportPlan = useCallback(() => {
     const stage = stageRef.current;
@@ -230,7 +244,7 @@ function App() {
   // Handle furniture drag
   const handleDragEnd = (id, e) => {
     const node = e.target;
-    setFurniture((prev) =>
+    commitFurniture((prev) =>
       prev.map((f) => (f.id === id ? { ...f, x: node.x(), y: node.y() } : f))
     );
   };
@@ -241,7 +255,7 @@ function App() {
     node.scaleX(1);
     node.scaleY(1);
 
-    setFurniture((prev) =>
+    commitFurniture((prev) =>
       prev.map((f) =>
         f.id === id
           ? {
@@ -270,23 +284,43 @@ function App() {
     }
   };
 
-  // Delete selected item with Backspace / Delete (not while typing in inputs)
+  // Drop selection if the selected item no longer exists (e.g. after undo)
+  useEffect(() => {
+    setSelectedId((sel) => {
+      if (sel == null) return sel;
+      return furniture.some((f) => f.id === sel) ? sel : null;
+    });
+  }, [furniture]);
+
+  // Undo/Redo (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z) and delete (Backspace/Delete); skip when typing in fields
   useEffect(() => {
     const onKeyDown = (ev) => {
-      if (ev.key !== 'Backspace' && ev.key !== 'Delete') return;
       const el = document.activeElement;
       if (el) {
         const tag = el.tagName;
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
         if (el.isContentEditable) return;
       }
+
+      const meta = ev.metaKey || ev.ctrlKey;
+      if (meta && ev.key.toLowerCase() === 'z') {
+        ev.preventDefault();
+        if (ev.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+        return;
+      }
+
+      if (ev.key !== 'Backspace' && ev.key !== 'Delete') return;
       if (!selectedId) return;
       ev.preventDefault();
       deleteFurniture(selectedId);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, deleteFurniture]);
+  }, [selectedId, deleteFurniture, undo, redo]);
 
   const selectedFurniture = furniture.find(f => f.id === selectedId);
 
@@ -310,6 +344,10 @@ function App() {
         pixelsPerInch={pixelsPerInch}
         onUploadFloorPlan={() => fileInputRef.current?.click()}
         hasFloorPlan={!!floorPlanUrl}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
         onClearCanvas={() => setShowClearConfirm(true)}
         onExportPlan={handleExportPlan}
         canClearCanvas={hasCanvasContent}

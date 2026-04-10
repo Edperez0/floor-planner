@@ -7,6 +7,10 @@ function Toolbar({
   pixelsPerInch,
   onUploadFloorPlan,
   hasFloorPlan,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   onClearCanvas,
   onExportPlan,
   canClearCanvas,
@@ -27,6 +31,24 @@ function Toolbar({
         {isCalibrated ? '✓ Recalibrate' : 'Calibrate Scale'}
       </button>
       <div className="toolbar-utilities" role="group" aria-label="Canvas utilities">
+        <button
+          type="button"
+          className="utility-btn utility-btn-undo"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo (Ctrl+Z or ⌘Z)"
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          className="utility-btn utility-btn-redo"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="Redo (Ctrl+Shift+Z or ⌘⇧Z)"
+        >
+          Redo
+        </button>
         <button
           type="button"
           className="utility-btn utility-btn-clear"

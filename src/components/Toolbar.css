@@ -78,6 +78,16 @@
   transition: background 0.2s, opacity 0.2s;
 }
 
+.utility-btn-undo,
+.utility-btn-redo {
+  background: #566573;
+}
+
+.utility-btn-undo:hover:not(:disabled),
+.utility-btn-redo:hover:not(:disabled) {
+  background: #4a5f6f;
+}
+
 .utility-btn-clear {
   background: #c0392b;
 }
