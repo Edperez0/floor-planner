@@ -1,20 +1,51 @@
 import React from 'react';
 import './Toolbar.css';
 
-function Toolbar({ onStartCalibration, isCalibrated, pixelsPerInch, onUploadFloorPlan, hasFloorPlan }) {
+function Toolbar({
+  onStartCalibration,
+  isCalibrated,
+  pixelsPerInch,
+  onUploadFloorPlan,
+  hasFloorPlan,
+  onClearCanvas,
+  onExportPlan,
+  canClearCanvas,
+  canExportPlan,
+}) {
   return (
     <div className="toolbar">
       <h2>Floor Planner</h2>
-      <button onClick={onUploadFloorPlan} className="upload-toolbar-btn">
+      <button type="button" onClick={onUploadFloorPlan} className="upload-toolbar-btn">
         {hasFloorPlan ? '📁 Change Floor Plan' : '📁 Upload Floor Plan'}
       </button>
       <button
+        type="button"
         onClick={onStartCalibration}
         className="calibrate-btn"
         disabled={!hasFloorPlan}
       >
         {isCalibrated ? '✓ Recalibrate' : 'Calibrate Scale'}
       </button>
+      <div className="toolbar-utilities" role="group" aria-label="Canvas utilities">
+        <button
+          type="button"
+          className="utility-btn utility-btn-clear"
+          onClick={onClearCanvas}
+          disabled={!canClearCanvas}
+          title={canClearCanvas ? 'Remove all furniture and the floor plan' : 'Nothing to clear'}
+        >
+          Clear Canvas
+        </button>
+        <button
+          type="button"
+          className="utility-btn utility-btn-export"
+          onClick={onExportPlan}
+          disabled={!canExportPlan}
+          title={canExportPlan ? 'Download PNG of the plan' : 'Add a floor plan or furniture first'}
+        >
+          Export Plan
+        </button>
+      </div>
       {isCalibrated && (
         <div className="calibration-info">
           Scale: {pixelsPerInch.toFixed(2)} px/inch

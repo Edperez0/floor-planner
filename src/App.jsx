@@ -5,6 +5,7 @@ import Toolbar from './components/Toolbar';
 import FurnitureItem from './components/FurnitureItem';
 import CalibrationLine from './components/CalibrationLine';
 import CalibrationModal from './components/CalibrationModal';
+import ClearConfirmModal from './components/ClearConfirmModal';
 import FurniturePanel from './components/FurniturePanel';
 import './App.css';
 
@@ -17,6 +18,7 @@ function App() {
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [calibrationLine, setCalibrationLine] = useState(null);
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const stageRef = useRef(null);
@@ -192,6 +194,39 @@ function App() {
     setSelectedId((sel) => (sel === id ? null : sel));
   }, []);
 
+  const hasCanvasContent = !!floorPlanUrl || furniture.length > 0;
+
+  const confirmClearCanvas = useCallback(() => {
+    localStorage.removeItem('floorPlanImage');
+    setFloorPlanUrl(null);
+    setFurniture([]);
+    setSelectedId(null);
+    setPixelsPerInch(null);
+    setIsCalibrating(false);
+    setCalibrationLine(null);
+    setShowCalibrationModal(false);
+    setShowClearConfirm(false);
+  }, []);
+
+  const handleExportPlan = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    const pixelRatio = Math.min(3, Math.max(2, dpr * 1.5));
+    const dataUrl = stage.toDataURL({
+      mimeType: 'image/png',
+      quality: 1,
+      pixelRatio,
+    });
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'my-floorplan.png';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, []);
+
   // Handle furniture drag
   const handleDragEnd = (id, e) => {
     const node = e.target;
@@ -275,6 +310,10 @@ function App() {
         pixelsPerInch={pixelsPerInch}
         onUploadFloorPlan={() => fileInputRef.current?.click()}
         hasFloorPlan={!!floorPlanUrl}
+        onClearCanvas={() => setShowClearConfirm(true)}
+        onExportPlan={handleExportPlan}
+        canClearCanvas={hasCanvasContent}
+        canExportPlan={hasCanvasContent}
       />
 
       <FurniturePanel
@@ -355,6 +394,13 @@ function App() {
             setCalibrationLine(null);
             setIsCalibrating(false);
           }}
+        />
+      )}
+
+      {showClearConfirm && (
+        <ClearConfirmModal
+          onCancel={() => setShowClearConfirm(false)}
+          onConfirm={confirmClearCanvas}
         />
       )}
     </div>
