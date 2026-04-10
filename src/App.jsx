@@ -4,6 +4,7 @@ import useImage from './hooks/useImage';
 import { useFurnitureUndoRedo } from './hooks/useFurnitureUndoRedo';
 import { sortFurnitureForCanvas } from './utils/furnitureRenderOrder';
 import { serializeProject, parseProjectFile } from './utils/projectFile';
+import { defaultFillColorForType } from './utils/furnitureColors';
 import Toolbar from './components/Toolbar';
 import FurnitureItem from './components/FurnitureItem';
 import CalibrationLine from './components/CalibrationLine';
@@ -193,7 +194,7 @@ function App() {
   };
 
   // Add furniture item
-  const addFurniture = (type, widthFeet, widthInches, depthFeet, depthInches) => {
+  const addFurniture = (type, widthFeet, widthInches, depthFeet, depthInches, fillColor) => {
     if (!pixelsPerInch) {
       alert('Please calibrate the floor plan first!');
       return;
@@ -201,6 +202,10 @@ function App() {
 
     const totalWidthInches = widthFeet * 12 + widthInches;
     const totalDepthInches = depthFeet * 12 + depthInches;
+    const hex =
+      typeof fillColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(fillColor.trim())
+        ? fillColor.trim()
+        : defaultFillColorForType(type);
 
     /**
      * FURNITURE SIZE CALCULATION:
@@ -217,6 +222,7 @@ function App() {
       rotation: 0,
       realWidth: { feet: widthFeet, inches: widthInches },
       realDepth: { feet: depthFeet, inches: depthInches },
+      fillColor: hex,
     };
 
     commitFurniture((prev) => [...prev, newItem]);
@@ -241,6 +247,17 @@ function App() {
       )
     );
   };
+
+  const updateFurnitureColor = useCallback(
+    (id, fillColor) => {
+      const hex = typeof fillColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(fillColor.trim()) ? fillColor.trim() : null;
+      if (!hex) return;
+      commitFurniture((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, fillColor: hex } : item))
+      );
+    },
+    [commitFurniture]
+  );
 
   const deleteFurniture = useCallback(
     (id) => {
@@ -558,6 +575,7 @@ function App() {
               onAddFurniture={addFurniture}
               selectedFurniture={selectedFurniture}
               onUpdateFurniture={updateFurniture}
+              onUpdateFurnitureColor={updateFurnitureColor}
               onDeleteFurniture={deleteFurniture}
               isCalibrated={!!pixelsPerInch}
             />

@@ -3,6 +3,8 @@
  * Uses SVG data URLs as lightweight placeholder floor plans.
  */
 
+import { defaultFillColorForType } from '../utils/furnitureColors';
+
 const PPI = 7;
 
 function svgFloorPlan(label) {
@@ -25,6 +27,7 @@ function piece(id, type, x, y, wf, wi, df, di, ppi, rotation = 0, stackOrder) {
     realDepth: { feet: df, inches: di },
   };
   if (typeof stackOrder === 'number') item.stackOrder = stackOrder;
+  item.fillColor = defaultFillColorForType(type);
   return item;
 }
 

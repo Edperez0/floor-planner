@@ -27,6 +27,9 @@ function normalizeFurnitureItem(raw, index) {
       inches: Math.min(11, Math.max(0, Number(rd.inches) || 0)),
     },
     ...(typeof raw.stackOrder === 'number' ? { stackOrder: raw.stackOrder } : {}),
+    ...(typeof raw.fillColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(raw.fillColor.trim())
+      ? { fillColor: raw.fillColor.trim() }
+      : {}),
   };
 }
 

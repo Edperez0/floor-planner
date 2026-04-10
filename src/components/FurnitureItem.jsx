@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Group, Rect, Text, Circle, Transformer } from 'react-konva';
+import { defaultFillColorForType } from '../utils/furnitureColors';
 
 const DELETE_BTN_R = 11;
 
@@ -14,17 +15,9 @@ function FurnitureItem({ item, isSelected, onSelect, onDelete, onDragEnd, onTran
     } else if (!isSelected && trRef.current) {
       trRef.current.nodes([]);
     }
-  }, [isSelected, item.width, item.height, item.rotation]);
+  }, [isSelected, item.width, item.height, item.rotation, item.fillColor]);
 
-  const getColor = (type) => {
-    const lowerType = type.toLowerCase();
-    if (lowerType.includes('bed')) return '#8B4513';
-    if (lowerType.includes('sofa') || lowerType.includes('loveseat')) return '#CD853F';
-    if (lowerType.includes('table')) return '#A0522D';
-    if (lowerType.includes('rug')) return '#DEB887';
-    if (lowerType.includes('desk')) return '#D2691E';
-    return '#8B7355';
-  };
+  const fill = item.fillColor ?? defaultFillColorForType(item.type);
 
   const stopPointerBubble = (e) => {
     e.cancelBubble = true;
@@ -61,7 +54,7 @@ function FurnitureItem({ item, isSelected, onSelect, onDelete, onDragEnd, onTran
           y={0}
           width={w}
           height={h}
-          fill={getColor(item.type)}
+          fill={fill}
           stroke={isSelected ? '#3498db' : '#000'}
           strokeWidth={isSelected ? 3 : 1}
           hitStrokeWidth={14}
