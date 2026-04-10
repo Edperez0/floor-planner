@@ -72,7 +72,26 @@ function App() {
     return () => ro.disconnect();
   }, []);
 
+  // Mobile/tablet: avoid the browser treating drags as page scroll / overscroll on the canvas
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const container = stage.container();
+    container.style.touchAction = 'none';
+    container.style.userSelect = 'none';
+    container.style.webkitUserSelect = 'none';
+
+    const preventTouchScroll = (ev) => {
+      if (ev.cancelable) ev.preventDefault();
+    };
+    container.addEventListener('touchmove', preventTouchScroll, { passive: false });
+    return () => {
+      container.removeEventListener('touchmove', preventTouchScroll);
+    };
+  }, [canvasSize.width, canvasSize.height, floorPlanUrl]);
+
   // Handle file upload
+
   const handleFileUpload = (file) => {
     if (!file || !file.type.startsWith('image/')) {
       alert('Please upload an image file');
@@ -140,12 +159,13 @@ function App() {
     }
   };
 
-  // Handle mouse move during calibration (live preview of line end)
-  const handleStageMouseMove = (e) => {
+  // Pointer / mouse / touch move during calibration (live preview of line end)
+  const handleStagePointerMove = (e) => {
     if (!isCalibrating || !calibrationLine || calibrationLine.phase !== 'drawing') return;
 
     const stage = stageRef.current;
     const pos = stage.getPointerPosition();
+    if (!pos) return;
     setCalibrationLine({ ...calibrationLine, end: pos });
   };
 
@@ -365,8 +385,8 @@ function App() {
     );
   };
 
-  // Deselect when clicking floor / empty canvas (not when calibrating)
-  const handleStageMouseDown = (e) => {
+  // Deselect when tapping floor / empty canvas (not when calibrating)
+  const handleStageSurfaceDown = (e) => {
     if (isCalibrating) return;
     const target = e.target;
     const nodeName = typeof target.name === 'function' ? target.name() : '';
@@ -475,10 +495,24 @@ function App() {
                 width={canvasSize.width}
                 height={canvasSize.height}
                 onClick={handleStageClick}
-                onMouseDown={handleStageMouseDown}
-                onMouseMove={handleStageMouseMove}
                 onTap={handleStageClick}
-                style={{ cursor: isCalibrating ? 'crosshair' : 'default' }}
+                {...(typeof PointerEvent !== 'undefined'
+                  ? {
+                      onPointerDown: handleStageSurfaceDown,
+                      onPointerMove: handleStagePointerMove,
+                    }
+                  : {
+                      onMouseDown: handleStageSurfaceDown,
+                      onMouseMove: handleStagePointerMove,
+                      onTouchStart: handleStageSurfaceDown,
+                      onTouchMove: handleStagePointerMove,
+                    })}
+                style={{
+                  cursor: isCalibrating ? 'crosshair' : 'default',
+                  touchAction: 'none',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                }}
               >
                 <Layer>
                   {floorPlanImage && (

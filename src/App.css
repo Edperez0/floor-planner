@@ -40,9 +40,16 @@
   min-height: 0;
   position: relative;
   background: #fff;
+  touch-action: none;
+  -ms-touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  overscroll-behavior: none;
 }
 
 .canvas-host .konvajs-content {
+  touch-action: none;
+  -ms-touch-action: none;
   border-radius: 0;
 }
 

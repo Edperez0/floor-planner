@@ -64,6 +64,7 @@ function FurnitureItem({ item, isSelected, onSelect, onDelete, onDragEnd, onTran
           fill={getColor(item.type)}
           stroke={isSelected ? '#3498db' : '#000'}
           strokeWidth={isSelected ? 3 : 1}
+          hitStrokeWidth={14}
           shadowColor="black"
           shadowBlur={5}
           shadowOpacity={0.3}
@@ -104,6 +105,7 @@ function FurnitureItem({ item, isSelected, onSelect, onDelete, onDragEnd, onTran
           rotation={item.rotation}
           offsetX={w / 2}
           offsetY={h / 2}
+          onPointerDown={stopPointerBubble}
           onMouseDown={stopPointerBubble}
           onTouchStart={stopPointerBubble}
           onClick={handleDeletePointer}
