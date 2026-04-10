@@ -13,6 +13,8 @@ function Toolbar({
   canRedo,
   onClearCanvas,
   onExportPlan,
+  onSaveProject,
+  onLoadProject,
   canClearCanvas,
   canExportPlan,
 }) {
@@ -66,6 +68,22 @@ function Toolbar({
           title={canExportPlan ? 'Download PNG of the plan' : 'Add a floor plan or furniture first'}
         >
           Export Plan
+        </button>
+        <button
+          type="button"
+          className="utility-btn utility-btn-save"
+          onClick={onSaveProject}
+          title="Download project as JSON"
+        >
+          Save Project
+        </button>
+        <button
+          type="button"
+          className="utility-btn utility-btn-load"
+          onClick={onLoadProject}
+          title="Load a previously saved JSON project"
+        >
+          Load Project
         </button>
       </div>
       {isCalibrated && (

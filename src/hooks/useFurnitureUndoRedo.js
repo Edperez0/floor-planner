@@ -53,6 +53,12 @@ function furnitureReducer(state, action) {
     }
     case 'RESET_ALL':
       return initialState;
+    case 'LOAD_SNAPSHOT':
+      return {
+        furniture: cloneItems(action.furniture),
+        past: [],
+        redo: [],
+      };
     default:
       return state;
   }
@@ -82,6 +88,10 @@ export function useFurnitureUndoRedo() {
     dispatch({ type: 'RESET_ALL' });
   }, []);
 
+  const loadSnapshot = useCallback((nextFurniture) => {
+    dispatch({ type: 'LOAD_SNAPSHOT', furniture: nextFurniture });
+  }, []);
+
   return {
     furniture: state.furniture,
     commitFurniture,
@@ -90,5 +100,6 @@ export function useFurnitureUndoRedo() {
     canUndo: state.past.length > 0,
     canRedo: state.redo.length > 0,
     resetAll,
+    loadSnapshot,
   };
 }

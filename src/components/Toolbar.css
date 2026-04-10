@@ -125,6 +125,22 @@
   background: #7d3c98;
 }
 
+.utility-btn-save {
+  background: #16a085;
+}
+
+.utility-btn-save:hover:not(:disabled) {
+  background: #138d75;
+}
+
+.utility-btn-load {
+  background: #2874a6;
+}
+
+.utility-btn-load:hover:not(:disabled) {
+  background: #21618c;
+}
+
 .utility-btn:disabled {
   background: #5d6d7e;
   cursor: not-allowed;

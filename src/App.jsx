@@ -3,6 +3,7 @@ import { Stage, Layer, Image as KonvaImage } from 'react-konva';
 import useImage from './hooks/useImage';
 import { useFurnitureUndoRedo } from './hooks/useFurnitureUndoRedo';
 import { sortFurnitureForCanvas } from './utils/furnitureRenderOrder';
+import { serializeProject, parseProjectFile } from './utils/projectFile';
 import Toolbar from './components/Toolbar';
 import FurnitureItem from './components/FurnitureItem';
 import CalibrationLine from './components/CalibrationLine';
@@ -22,6 +23,7 @@ function App() {
     canUndo,
     canRedo,
     resetAll: resetFurnitureUndo,
+    loadSnapshot,
   } = useFurnitureUndoRedo();
   const [selectedId, setSelectedId] = useState(null);
   const [pixelsPerInch, setPixelsPerInch] = useState(null); // Core calibration value
@@ -33,6 +35,7 @@ function App() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const stageRef = useRef(null);
   const fileInputRef = useRef(null);
+  const projectFileInputRef = useRef(null);
   const canvasHostRef = useRef(null);
 
   // Load floor plan from localStorage on mount
@@ -258,6 +261,60 @@ function App() {
     a.remove();
   }, []);
 
+  const handleSaveProject = useCallback(() => {
+    const json = serializeProject(floorPlanUrl, pixelsPerInch, furniture);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'my-floorplan.json';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, [floorPlanUrl, pixelsPerInch, furniture]);
+
+  const handleLoadProjectClick = useCallback(() => {
+    projectFileInputRef.current?.click();
+  }, []);
+
+  const handleProjectFileChange = useCallback(
+    (e) => {
+      const file = e.target.files?.[0];
+      e.target.value = '';
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const text = String(ev.target?.result ?? '');
+          const data = parseProjectFile(text);
+          setShowCalibrationModal(false);
+          setShowClearConfirm(false);
+          setIsCalibrating(false);
+          setCalibrationLine(null);
+          setSelectedId(null);
+
+          if (data.floorPlanImage) {
+            setFloorPlanUrl(data.floorPlanImage);
+            localStorage.setItem('floorPlanImage', data.floorPlanImage);
+          } else {
+            setFloorPlanUrl(null);
+            localStorage.removeItem('floorPlanImage');
+          }
+
+          setPixelsPerInch(data.pixelsPerInch);
+          loadSnapshot(data.furniture);
+        } catch (err) {
+          alert(err instanceof Error ? err.message : 'Could not load project file');
+        }
+      };
+      reader.readAsText(file);
+    },
+    [loadSnapshot]
+  );
+
   // Handle furniture drag
   const handleDragEnd = (id, e) => {
     const node = e.target;
@@ -360,6 +417,13 @@ function App() {
         onChange={handleFileInputChange}
         style={{ display: 'none' }}
       />
+      <input
+        ref={projectFileInputRef}
+        type="file"
+        accept=".json,application/json"
+        onChange={handleProjectFileChange}
+        style={{ display: 'none' }}
+      />
 
       <div className="app-shell">
         <Toolbar
@@ -374,6 +438,8 @@ function App() {
           canRedo={canRedo}
           onClearCanvas={() => setShowClearConfirm(true)}
           onExportPlan={handleExportPlan}
+          onSaveProject={handleSaveProject}
+          onLoadProject={handleLoadProjectClick}
           canClearCanvas={hasCanvasContent}
           canExportPlan={hasCanvasContent}
         />
