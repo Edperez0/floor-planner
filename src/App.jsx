@@ -98,18 +98,18 @@ function App() {
     const pos = stage.getPointerPosition();
 
     if (!calibrationLine) {
-      // First click - start the line
-      setCalibrationLine({ start: pos, end: pos });
-    } else if (!calibrationLine.end || (calibrationLine.end.x === calibrationLine.start.x && calibrationLine.end.y === calibrationLine.start.y)) {
-      // Second click - end the line
-      setCalibrationLine({ ...calibrationLine, end: pos });
+      // First click — anchor start; end follows pointer until second click
+      setCalibrationLine({ start: pos, end: pos, phase: 'drawing' });
+    } else if (calibrationLine.phase === 'drawing') {
+      // Second click — lock end and open length dialog
+      setCalibrationLine({ ...calibrationLine, end: pos, phase: 'locked' });
       setShowCalibrationModal(true);
     }
   };
 
-  // Handle mouse move during calibration
+  // Handle mouse move during calibration (live preview of line end)
   const handleStageMouseMove = (e) => {
-    if (!isCalibrating || !calibrationLine || calibrationLine.end) return;
+    if (!isCalibrating || !calibrationLine || calibrationLine.phase !== 'drawing') return;
 
     const stage = stageRef.current;
     const pos = stage.getPointerPosition();
