@@ -3,6 +3,116 @@
   height: 100vh;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.app-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 330px);
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  gap: 0 10px;
+  padding: 0 10px 10px;
+  box-sizing: border-box;
+}
+
+.canvas-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.canvas-host {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  background: #fff;
+}
+
+.canvas-host .konvajs-content {
+  border-radius: 0;
+}
+
+.sidebar-column {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Future AdSense: replace inner content with ins.adsbygoogle */
+.ad-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8e8e8;
+  color: #7f8c8d;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.ad-slot--leaderboard {
+  width: 100%;
+  max-width: 728px;
+  margin: 8px auto 0;
+  min-height: 50px;
+  max-height: 90px;
+  height: 90px;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+}
+
+.ad-slot--sidebar {
+  width: 300px;
+  max-width: 100%;
+  height: 250px;
+  max-height: 250px;
+  margin: 12px auto 0;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+}
+
+@media (max-width: 900px) {
+  .app-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .canvas-column {
+    min-height: min(50vh, 420px);
+  }
+
+  .canvas-host {
+    min-height: 240px;
+  }
+
+  .ad-slot--leaderboard {
+    max-width: 100%;
+    height: auto;
+    min-height: 50px;
+    max-height: 90px;
+  }
+
+  .sidebar-column {
+    min-height: 0;
+    max-height: none;
+  }
 }
 
 .konvajs-content {
@@ -27,7 +137,7 @@
   background: white;
   padding: 40px 60px;
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
 .drop-message p {
@@ -55,7 +165,7 @@
   padding: 40px;
   background: white;
   border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   max-width: 500px;
 }
 

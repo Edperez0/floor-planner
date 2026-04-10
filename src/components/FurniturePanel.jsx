@@ -66,6 +66,7 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
 
   return (
     <div className="furniture-panel">
+      <div className="furniture-panel__main">
       <div className="panel-section panel-section--presets">
         <h3>Furniture Presets</h3>
         {!isCalibrated && (
@@ -194,6 +195,15 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
           </button>
         </div>
       )}
+      </div>
+
+      <aside
+        className="ad-slot ad-slot--sidebar"
+        data-ad-slot="sidebar-mrec"
+        aria-label="Advertisement"
+      >
+        Advertisement
+      </aside>
     </div>
   );
 }

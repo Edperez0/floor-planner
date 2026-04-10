@@ -1,9 +1,9 @@
-.toolbar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+.toolbar.app-toolbar {
+  flex: 0 0 60px;
+  width: 100%;
+  min-height: 60px;
   height: 60px;
+  box-sizing: border-box;
   background: #2c3e50;
   color: white;
   display: flex;
@@ -11,7 +11,8 @@
   padding: 0 20px;
   gap: 20px;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  overflow-x: auto;
 }
 
 .toolbar h2 {

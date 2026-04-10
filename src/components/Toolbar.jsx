@@ -17,7 +17,7 @@ function Toolbar({
   canExportPlan,
 }) {
   return (
-    <div className="toolbar">
+    <div className="toolbar app-toolbar">
       <h2>Floor Planner</h2>
       <button type="button" onClick={onUploadFloorPlan} className="upload-toolbar-btn">
         {hasFloorPlan ? '📁 Change Floor Plan' : '📁 Upload Floor Plan'}

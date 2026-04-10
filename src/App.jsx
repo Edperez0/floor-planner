@@ -29,10 +29,11 @@ function App() {
   const [calibrationLine, setCalibrationLine] = useState(null);
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [canvasSize, setCanvasSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const stageRef = useRef(null);
   const fileInputRef = useRef(null);
+  const canvasHostRef = useRef(null);
 
   // Load floor plan from localStorage on mount
   useEffect(() => {
@@ -42,13 +43,28 @@ function App() {
     }
   }, []);
 
-  // Handle window resize
+  // Konva Stage size follows the canvas host (excludes sidebar and bottom leaderboard slot)
   useEffect(() => {
-    const handleResize = () => {
-      setCanvasSize({ width: window.innerWidth, height: window.innerHeight });
+    const el = canvasHostRef.current;
+    if (!el) return;
+
+    const applySize = (width, height) => {
+      const w = Math.floor(width);
+      const h = Math.floor(height);
+      if (w > 0 && h > 0) {
+        setCanvasSize({ width: w, height: h });
+      }
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect;
+      if (cr) applySize(cr.width, cr.height);
+    });
+    ro.observe(el);
+    const br = el.getBoundingClientRect();
+    applySize(br.width, br.height);
+
+    return () => ro.disconnect();
   }, []);
 
   // Handle file upload
@@ -344,29 +360,87 @@ function App() {
         onChange={handleFileInputChange}
         style={{ display: 'none' }}
       />
-      <Toolbar
-        onStartCalibration={startCalibration}
-        isCalibrated={!!pixelsPerInch}
-        pixelsPerInch={pixelsPerInch}
-        onUploadFloorPlan={() => fileInputRef.current?.click()}
-        hasFloorPlan={!!floorPlanUrl}
-        onUndo={undo}
-        onRedo={redo}
-        canUndo={canUndo}
-        canRedo={canRedo}
-        onClearCanvas={() => setShowClearConfirm(true)}
-        onExportPlan={handleExportPlan}
-        canClearCanvas={hasCanvasContent}
-        canExportPlan={hasCanvasContent}
-      />
 
-      <FurniturePanel
-        onAddFurniture={addFurniture}
-        selectedFurniture={selectedFurniture}
-        onUpdateFurniture={updateFurniture}
-        onDeleteFurniture={deleteFurniture}
-        isCalibrated={!!pixelsPerInch}
-      />
+      <div className="app-shell">
+        <Toolbar
+          onStartCalibration={startCalibration}
+          isCalibrated={!!pixelsPerInch}
+          pixelsPerInch={pixelsPerInch}
+          onUploadFloorPlan={() => fileInputRef.current?.click()}
+          hasFloorPlan={!!floorPlanUrl}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onClearCanvas={() => setShowClearConfirm(true)}
+          onExportPlan={handleExportPlan}
+          canClearCanvas={hasCanvasContent}
+          canExportPlan={hasCanvasContent}
+        />
+
+        <div className="app-main">
+          <div className="canvas-column">
+            <div ref={canvasHostRef} className="canvas-host">
+              <Stage
+                ref={stageRef}
+                width={canvasSize.width}
+                height={canvasSize.height}
+                onClick={handleStageClick}
+                onMouseDown={handleStageMouseDown}
+                onMouseMove={handleStageMouseMove}
+                onTap={handleStageClick}
+                style={{ cursor: isCalibrating ? 'crosshair' : 'default' }}
+              >
+                <Layer>
+                  {floorPlanImage && (
+                    <KonvaImage
+                      name="floor-plan"
+                      image={floorPlanImage}
+                      x={0}
+                      y={0}
+                      listening
+                    />
+                  )}
+
+                  {isCalibrating && calibrationLine && (
+                    <CalibrationLine line={calibrationLine} />
+                  )}
+
+                  {furnitureForCanvas.map((item) => (
+                    <FurnitureItem
+                      key={item.id}
+                      item={item}
+                      isSelected={item.id === selectedId}
+                      onSelect={() => setSelectedId(item.id)}
+                      onDelete={() => deleteFurniture(item.id)}
+                      onDragEnd={(e) => handleDragEnd(item.id, e)}
+                      onTransformEnd={(e) => handleTransformEnd(item.id, e)}
+                    />
+                  ))}
+                </Layer>
+              </Stage>
+            </div>
+
+            <aside
+              className="ad-slot ad-slot--leaderboard"
+              data-ad-slot="leaderboard"
+              aria-label="Advertisement"
+            >
+              Advertisement
+            </aside>
+          </div>
+
+          <aside className="sidebar-column">
+            <FurniturePanel
+              onAddFurniture={addFurniture}
+              selectedFurniture={selectedFurniture}
+              onUpdateFurniture={updateFurniture}
+              onDeleteFurniture={deleteFurniture}
+              isCalibrated={!!pixelsPerInch}
+            />
+          </aside>
+        </div>
+      </div>
 
       {isDraggingFile && (
         <div className="drop-overlay">
@@ -381,54 +455,12 @@ function App() {
           <div className="upload-prompt">
             <h2>Upload a Floor Plan to Get Started</h2>
             <p>Drag and drop an image here or click the button below</p>
-            <button onClick={() => fileInputRef.current?.click()} className="upload-btn">
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="upload-btn">
               Choose Floor Plan Image
             </button>
           </div>
         </div>
       )}
-
-      <Stage
-        ref={stageRef}
-        width={canvasSize.width}
-        height={canvasSize.height}
-        onClick={handleStageClick}
-        onMouseDown={handleStageMouseDown}
-        onMouseMove={handleStageMouseMove}
-        onTap={handleStageClick}
-        style={{ cursor: isCalibrating ? 'crosshair' : 'default' }}
-      >
-        <Layer>
-          {/* Floor plan background image */}
-          {floorPlanImage && (
-            <KonvaImage
-              name="floor-plan"
-              image={floorPlanImage}
-              x={0}
-              y={0}
-              listening
-            />
-          )}
-
-          {/* Calibration line */}
-          {isCalibrating && calibrationLine && (
-            <CalibrationLine line={calibrationLine} />
-          )}
-
-          {/* Furniture items (rugs drawn first so they sit under other pieces) */}
-          {furnitureForCanvas.map((item) => (
-            <FurnitureItem
-              key={item.id}
-              item={item}
-              isSelected={item.id === selectedId}
-              onSelect={() => setSelectedId(item.id)}
-              onDelete={() => deleteFurniture(item.id)}
-              onDragEnd={(e) => handleDragEnd(item.id, e)}
-              onTransformEnd={(e) => handleTransformEnd(item.id, e)}
-            />
-          ))}
-        </Layer>
-      </Stage>
 
       {showCalibrationModal && (
         <CalibrationModal
