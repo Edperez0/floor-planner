@@ -15,6 +15,7 @@ function Toolbar({
   onExportPlan,
   onSaveProject,
   onLoadProject,
+  onOpenTemplates,
   canClearCanvas,
   canExportPlan,
 }) {
@@ -31,6 +32,14 @@ function Toolbar({
         disabled={!hasFloorPlan}
       >
         {isCalibrated ? '✓ Recalibrate' : 'Calibrate Scale'}
+      </button>
+      <button
+        type="button"
+        onClick={onOpenTemplates}
+        className="templates-toolbar-btn"
+        title="Load a starter layout"
+      >
+        Templates
       </button>
       <div className="toolbar-utilities" role="group" aria-label="Canvas utilities">
         <button

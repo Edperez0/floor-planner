@@ -10,6 +10,7 @@ import CalibrationLine from './components/CalibrationLine';
 import CalibrationModal from './components/CalibrationModal';
 import ClearConfirmModal from './components/ClearConfirmModal';
 import FurniturePanel from './components/FurniturePanel';
+import TemplatesModal from './components/TemplatesModal';
 import './App.css';
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
   const [calibrationLine, setCalibrationLine] = useState(null);
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const stageRef = useRef(null);
@@ -261,6 +263,41 @@ function App() {
     a.remove();
   }, []);
 
+  const applyProjectSnapshot = useCallback(
+    (data) => {
+      setShowCalibrationModal(false);
+      setShowClearConfirm(false);
+      setShowTemplatesModal(false);
+      setIsCalibrating(false);
+      setCalibrationLine(null);
+      setSelectedId(null);
+
+      if (data.floorPlanImage) {
+        setFloorPlanUrl(data.floorPlanImage);
+        localStorage.setItem('floorPlanImage', data.floorPlanImage);
+      } else {
+        setFloorPlanUrl(null);
+        localStorage.removeItem('floorPlanImage');
+      }
+
+      setPixelsPerInch(data.pixelsPerInch);
+      loadSnapshot(data.furniture);
+    },
+    [loadSnapshot]
+  );
+
+  const handleSelectTemplate = useCallback(
+    (template) => {
+      try {
+        const data = parseProjectFile(JSON.stringify(template.payload));
+        applyProjectSnapshot(data);
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Could not load template');
+      }
+    },
+    [applyProjectSnapshot]
+  );
+
   const handleSaveProject = useCallback(() => {
     const json = serializeProject(floorPlanUrl, pixelsPerInch, furniture);
     const blob = new Blob([json], { type: 'application/json' });
@@ -290,29 +327,14 @@ function App() {
         try {
           const text = String(ev.target?.result ?? '');
           const data = parseProjectFile(text);
-          setShowCalibrationModal(false);
-          setShowClearConfirm(false);
-          setIsCalibrating(false);
-          setCalibrationLine(null);
-          setSelectedId(null);
-
-          if (data.floorPlanImage) {
-            setFloorPlanUrl(data.floorPlanImage);
-            localStorage.setItem('floorPlanImage', data.floorPlanImage);
-          } else {
-            setFloorPlanUrl(null);
-            localStorage.removeItem('floorPlanImage');
-          }
-
-          setPixelsPerInch(data.pixelsPerInch);
-          loadSnapshot(data.furniture);
+          applyProjectSnapshot(data);
         } catch (err) {
           alert(err instanceof Error ? err.message : 'Could not load project file');
         }
       };
       reader.readAsText(file);
     },
-    [loadSnapshot]
+    [applyProjectSnapshot]
   );
 
   // Handle furniture drag
@@ -440,6 +462,7 @@ function App() {
           onExportPlan={handleExportPlan}
           onSaveProject={handleSaveProject}
           onLoadProject={handleLoadProjectClick}
+          onOpenTemplates={() => setShowTemplatesModal(true)}
           canClearCanvas={hasCanvasContent}
           canExportPlan={hasCanvasContent}
         />
@@ -536,6 +559,13 @@ function App() {
             setCalibrationLine(null);
             setIsCalibrating(false);
           }}
+        />
+      )}
+
+      {showTemplatesModal && (
+        <TemplatesModal
+          onClose={() => setShowTemplatesModal(false)}
+          onSelectTemplate={handleSelectTemplate}
         />
       )}
 

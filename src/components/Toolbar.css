@@ -76,6 +76,23 @@
   opacity: 0.6;
 }
 
+.templates-toolbar-btn {
+  padding: clamp(8px, 0.9vw, 10px) clamp(12px, 1.5vw, 20px);
+  background: #8e44ad;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: clamp(12px, 1.05vw, 14px);
+  font-weight: 500;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.templates-toolbar-btn:hover {
+  background: #7d3c98;
+}
+
 .toolbar-utilities {
   display: flex;
   align-items: center;
