@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { parseWholeFeet, parseWholeInches } from '../utils/dimensionsInput';
 import './FurniturePanel.css';
 
 const FURNITURE_PRESETS = [
@@ -20,19 +21,18 @@ const FURNITURE_PRESETS = [
 function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, onDeleteFurniture, isCalibrated }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [furnitureName, setFurnitureName] = useState('');
-  const [widthFeet, setWidthFeet] = useState(0);
-  const [widthInches, setWidthInches] = useState(0);
-  const [depthFeet, setDepthFeet] = useState(0);
-  const [depthInches, setDepthInches] = useState(0);
+  const [widthFeet, setWidthFeet] = useState('0');
+  const [widthInches, setWidthInches] = useState('0');
+  const [depthFeet, setDepthFeet] = useState('0');
+  const [depthInches, setDepthInches] = useState('0');
 
-  // Update form when furniture is selected
   useEffect(() => {
     if (selectedFurniture) {
       setFurnitureName(selectedFurniture.type);
-      setWidthFeet(selectedFurniture.realWidth.feet);
-      setWidthInches(selectedFurniture.realWidth.inches);
-      setDepthFeet(selectedFurniture.realDepth.feet);
-      setDepthInches(selectedFurniture.realDepth.inches);
+      setWidthFeet(String(selectedFurniture.realWidth.feet));
+      setWidthInches(String(selectedFurniture.realWidth.inches));
+      setDepthFeet(String(selectedFurniture.realDepth.feet));
+      setDepthInches(String(selectedFurniture.realDepth.inches));
     }
   }, [selectedFurniture]);
 
@@ -49,18 +49,28 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
       alert('Please enter a furniture name');
       return;
     }
-    onAddFurniture(furnitureName, widthFeet, widthInches, depthFeet, depthInches);
+    const wf = parseWholeFeet(widthFeet);
+    const wi = parseWholeInches(widthInches);
+    const df = parseWholeFeet(depthFeet);
+    const di = parseWholeInches(depthInches);
+    onAddFurniture(furnitureName, wf, wi, df, di);
     setShowAddForm(false);
     setFurnitureName('');
-    setWidthFeet(0);
-    setWidthInches(0);
-    setDepthFeet(0);
-    setDepthInches(0);
+    setWidthFeet('0');
+    setWidthInches('0');
+    setDepthFeet('0');
+    setDepthInches('0');
   };
 
   const handleUpdate = () => {
     if (selectedFurniture) {
-      onUpdateFurniture(selectedFurniture.id, widthFeet, widthInches, depthFeet, depthInches);
+      onUpdateFurniture(
+        selectedFurniture.id,
+        parseWholeFeet(widthFeet),
+        parseWholeInches(widthInches),
+        parseWholeFeet(depthFeet),
+        parseWholeInches(depthInches)
+      );
     }
   };
 
@@ -94,6 +104,7 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
 
       <div className="panel-section">
         <button
+          type="button"
           className="toggle-form-btn"
           onClick={() => setShowAddForm(!showAddForm)}
           disabled={!isCalibrated}
@@ -116,7 +127,7 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
                 min="0"
                 placeholder="ft"
                 value={widthFeet}
-                onChange={(e) => setWidthFeet(parseInt(e.target.value) || 0)}
+                onChange={(e) => setWidthFeet(e.target.value)}
               />
               <input
                 type="number"
@@ -124,7 +135,7 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
                 max="11"
                 placeholder="in"
                 value={widthInches}
-                onChange={(e) => setWidthInches(parseInt(e.target.value) || 0)}
+                onChange={(e) => setWidthInches(e.target.value)}
               />
             </div>
             <div className="dimension-row">
@@ -134,7 +145,7 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
                 min="0"
                 placeholder="ft"
                 value={depthFeet}
-                onChange={(e) => setDepthFeet(parseInt(e.target.value) || 0)}
+                onChange={(e) => setDepthFeet(e.target.value)}
               />
               <input
                 type="number"
@@ -142,10 +153,10 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
                 max="11"
                 placeholder="in"
                 value={depthInches}
-                onChange={(e) => setDepthInches(parseInt(e.target.value) || 0)}
+                onChange={(e) => setDepthInches(e.target.value)}
               />
             </div>
-            <button className="add-btn" onClick={handleAddCustom}>
+            <button type="button" className="add-btn" onClick={handleAddCustom}>
               Add to Canvas
             </button>
           </div>
@@ -161,14 +172,14 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
               type="number"
               min="0"
               value={widthFeet}
-              onChange={(e) => setWidthFeet(parseInt(e.target.value) || 0)}
+              onChange={(e) => setWidthFeet(e.target.value)}
             />
             <input
               type="number"
               min="0"
               max="11"
               value={widthInches}
-              onChange={(e) => setWidthInches(parseInt(e.target.value) || 0)}
+              onChange={(e) => setWidthInches(e.target.value)}
             />
           </div>
           <div className="dimension-row">
@@ -177,20 +188,20 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
               type="number"
               min="0"
               value={depthFeet}
-              onChange={(e) => setDepthFeet(parseInt(e.target.value) || 0)}
+              onChange={(e) => setDepthFeet(e.target.value)}
             />
             <input
               type="number"
               min="0"
               max="11"
               value={depthInches}
-              onChange={(e) => setDepthInches(parseInt(e.target.value) || 0)}
+              onChange={(e) => setDepthInches(e.target.value)}
             />
           </div>
-          <button className="update-btn" onClick={handleUpdate}>
+          <button type="button" className="update-btn" onClick={handleUpdate}>
             Update Dimensions
           </button>
-          <button className="delete-btn" onClick={() => onDeleteFurniture(selectedFurniture.id)}>
+          <button type="button" className="delete-btn" onClick={() => onDeleteFurniture(selectedFurniture.id)}>
             Delete
           </button>
         </div>

@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
+import { parseWholeFeet, parseWholeInches } from '../utils/dimensionsInput';
 import './CalibrationModal.css';
 
 function CalibrationModal({ onSubmit, onCancel }) {
-  const [feet, setFeet] = useState(0);
-  const [inches, setInches] = useState(0);
+  const [feet, setFeet] = useState('0');
+  const [inches, setInches] = useState('0');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (feet === 0 && inches === 0) {
+    const feetNum = parseWholeFeet(feet);
+    const inchesNum = parseWholeInches(inches);
+    if (feetNum === 0 && inchesNum === 0) {
       alert('Please enter a dimension');
       return;
     }
-    onSubmit(feet, inches);
+    onSubmit(feetNum, inchesNum);
   };
 
   return (
@@ -27,7 +30,7 @@ function CalibrationModal({ onSubmit, onCancel }) {
                 type="number"
                 min="0"
                 value={feet}
-                onChange={(e) => setFeet(parseInt(e.target.value) || 0)}
+                onChange={(e) => setFeet(e.target.value)}
                 autoFocus
               />
             </div>
@@ -38,7 +41,7 @@ function CalibrationModal({ onSubmit, onCancel }) {
                 min="0"
                 max="11"
                 value={inches}
-                onChange={(e) => setInches(parseInt(e.target.value) || 0)}
+                onChange={(e) => setInches(e.target.value)}
               />
             </div>
           </div>
