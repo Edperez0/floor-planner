@@ -1,19 +1,21 @@
 import React, { useRef, useEffect } from 'react';
-import { Rect, Text, Transformer } from 'react-konva';
+import { Group, Rect, Text, Circle, Transformer } from 'react-konva';
 
-function FurnitureItem({ item, isSelected, onSelect, onDragEnd, onTransformEnd }) {
-  const shapeRef = useRef();
+const DELETE_BTN_R = 11;
+
+function FurnitureItem({ item, isSelected, onSelect, onDelete, onDragEnd, onTransformEnd }) {
+  const groupRef = useRef();
   const trRef = useRef();
 
   useEffect(() => {
-    if (isSelected && trRef.current && shapeRef.current) {
-      // Attach transformer to the selected shape
-      trRef.current.nodes([shapeRef.current]);
-      trRef.current.getLayer().batchDraw();
+    if (isSelected && trRef.current && groupRef.current) {
+      trRef.current.nodes([groupRef.current]);
+      trRef.current.getLayer()?.batchDraw();
+    } else if (!isSelected && trRef.current) {
+      trRef.current.nodes([]);
     }
-  }, [isSelected]);
+  }, [isSelected, item.width, item.height, item.rotation]);
 
-  // Color scheme based on furniture type
   const getColor = (type) => {
     const lowerType = type.toLowerCase();
     if (lowerType.includes('bed')) return '#8B4513';
@@ -24,64 +26,112 @@ function FurnitureItem({ item, isSelected, onSelect, onDragEnd, onTransformEnd }
     return '#8B7355';
   };
 
+  const stopPointerBubble = (e) => {
+    e.cancelBubble = true;
+  };
+
+  const handleDeletePointer = (e) => {
+    e.cancelBubble = true;
+    onDelete();
+  };
+
+  const w = item.width;
+  const h = item.height;
+  const delCx = w - DELETE_BTN_R - 6;
+  const delCy = DELETE_BTN_R + 6;
+
   return (
     <>
-      <Rect
-        ref={shapeRef}
+      <Group
+        ref={groupRef}
+        name="furniture"
         x={item.x}
         y={item.y}
-        width={item.width}
-        height={item.height}
-        fill={getColor(item.type)}
-        stroke={isSelected ? '#3498db' : '#000'}
-        strokeWidth={isSelected ? 3 : 1}
-        draggable
         rotation={item.rotation}
-        offsetX={item.width / 2}
-        offsetY={item.height / 2}
+        offsetX={w / 2}
+        offsetY={h / 2}
+        draggable
         onClick={onSelect}
         onTap={onSelect}
         onDragEnd={onDragEnd}
         onTransformEnd={onTransformEnd}
-        shadowColor="black"
-        shadowBlur={5}
-        shadowOpacity={0.3}
-        shadowOffsetX={2}
-        shadowOffsetY={2}
-      />
-      <Text
-        x={item.x}
-        y={item.y}
-        text={`${item.type}\n${item.realWidth.feet}'${item.realWidth.inches}" × ${item.realDepth.feet}'${item.realDepth.inches}"`}
-        fontSize={12}
-        fill="white"
-        align="center"
-        verticalAlign="middle"
-        width={item.width}
-        height={item.height}
-        offsetX={item.width / 2}
-        offsetY={item.height / 2}
-        rotation={item.rotation}
-        listening={false}
-      />
+      >
+        <Rect
+          x={0}
+          y={0}
+          width={w}
+          height={h}
+          fill={getColor(item.type)}
+          stroke={isSelected ? '#3498db' : '#000'}
+          strokeWidth={isSelected ? 3 : 1}
+          shadowColor="black"
+          shadowBlur={5}
+          shadowOpacity={0.3}
+          shadowOffsetX={2}
+          shadowOffsetY={2}
+        />
+        <Text
+          x={0}
+          y={0}
+          text={`${item.type}\n${item.realWidth.feet}'${item.realWidth.inches}" × ${item.realDepth.feet}'${item.realDepth.inches}"`}
+          fontSize={12}
+          fill="white"
+          align="center"
+          verticalAlign="middle"
+          width={w}
+          height={h}
+          listening={false}
+        />
+      </Group>
       {isSelected && (
         <Transformer
           ref={trRef}
-          boundBoxFunc={(oldBox, newBox) => {
-            // Limit resize to prevent negative dimensions
-            if (newBox.width < 5 || newBox.height < 5) {
-              return oldBox;
-            }
-            return newBox;
-          }}
-          enabledAnchors={[
-            'top-left',
-            'top-right',
-            'bottom-left',
-            'bottom-right',
-          ]}
-          rotateEnabled={true}
+          rotateEnabled
+          enabledAnchors={[]}
+          borderEnabled
+          borderStroke="#3498db"
+          borderStrokeWidth={1}
+          padding={6}
+          boundBoxFunc={(oldBox, newBox) => newBox}
         />
+      )}
+      {/* Rendered after Transformer so the delete control stays clickable */}
+      {isSelected && (
+        <Group
+          name="furniture-delete"
+          x={item.x}
+          y={item.y}
+          rotation={item.rotation}
+          offsetX={w / 2}
+          offsetY={h / 2}
+          onMouseDown={stopPointerBubble}
+          onTouchStart={stopPointerBubble}
+          onClick={handleDeletePointer}
+          onTap={handleDeletePointer}
+        >
+          <Group x={delCx} y={delCy}>
+            <Circle
+              x={0}
+              y={0}
+              radius={DELETE_BTN_R}
+              fill="#e74c3c"
+              stroke="#fff"
+              strokeWidth={2}
+            />
+            <Text
+              x={-DELETE_BTN_R}
+              y={-10}
+              width={DELETE_BTN_R * 2}
+              height={20}
+              text="×"
+              fontSize={18}
+              fontStyle="bold"
+              fill="#fff"
+              align="center"
+              verticalAlign="middle"
+            />
+          </Group>
+        </Group>
       )}
     </>
   );

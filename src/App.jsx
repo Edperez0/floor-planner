@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Image as KonvaImage } from 'react-konva';
 import useImage from './hooks/useImage';
 import Toolbar from './components/Toolbar';
@@ -187,61 +187,71 @@ function App() {
     ));
   };
 
-  // Delete furniture
-  const deleteFurniture = (id) => {
-    setFurniture(furniture.filter(item => item.id !== id));
-    if (selectedId === id) setSelectedId(null);
-  };
+  const deleteFurniture = useCallback((id) => {
+    setFurniture((prev) => prev.filter((item) => item.id !== id));
+    setSelectedId((sel) => (sel === id ? null : sel));
+  }, []);
 
   // Handle furniture drag
   const handleDragEnd = (id, e) => {
-    const item = e.target;
-    setFurniture(furniture.map(f =>
-      f.id === id
-        ? { ...f, x: item.x(), y: item.y() }
-        : f
-    ));
+    const node = e.target;
+    setFurniture((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, x: node.x(), y: node.y() } : f))
+    );
   };
 
-  // Handle furniture transform (rotation/scale)
+  // Rotation / move only — dimensions stay tied to calibration (panel updates size)
   const handleTransformEnd = (id, e) => {
     const node = e.target;
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
-
-    // Reset scale and adjust width/height instead
     node.scaleX(1);
     node.scaleY(1);
 
-    setFurniture(furniture.map(f => {
-      if (f.id === id) {
-        const newWidth = Math.max(5, node.width() * scaleX);
-        const newHeight = Math.max(5, node.height() * scaleY);
-
-        // Calculate new real-world dimensions
-        const newWidthInches = newWidth / pixelsPerInch;
-        const newDepthInches = newHeight / pixelsPerInch;
-
-        return {
-          ...f,
-          x: node.x(),
-          y: node.y(),
-          width: newWidth,
-          height: newHeight,
-          rotation: node.rotation(),
-          realWidth: {
-            feet: Math.floor(newWidthInches / 12),
-            inches: Math.round(newWidthInches % 12)
-          },
-          realDepth: {
-            feet: Math.floor(newDepthInches / 12),
-            inches: Math.round(newDepthInches % 12)
-          }
-        };
-      }
-      return f;
-    }));
+    setFurniture((prev) =>
+      prev.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              x: node.x(),
+              y: node.y(),
+              rotation: node.rotation(),
+            }
+          : f
+      )
+    );
   };
+
+  // Deselect when clicking floor / empty canvas (not when calibrating)
+  const handleStageMouseDown = (e) => {
+    if (isCalibrating) return;
+    const target = e.target;
+    const nodeName = typeof target.name === 'function' ? target.name() : '';
+    if (nodeName === 'floor-plan') {
+      setSelectedId(null);
+      return;
+    }
+    const cls = target.getClassName?.();
+    if (cls === 'Stage' || cls === 'Layer') {
+      setSelectedId(null);
+    }
+  };
+
+  // Delete selected item with Backspace / Delete (not while typing in inputs)
+  useEffect(() => {
+    const onKeyDown = (ev) => {
+      if (ev.key !== 'Backspace' && ev.key !== 'Delete') return;
+      const el = document.activeElement;
+      if (el) {
+        const tag = el.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (el.isContentEditable) return;
+      }
+      if (!selectedId) return;
+      ev.preventDefault();
+      deleteFurniture(selectedId);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedId, deleteFurniture]);
 
   const selectedFurniture = furniture.find(f => f.id === selectedId);
 
@@ -300,6 +310,7 @@ function App() {
         width={canvasSize.width}
         height={canvasSize.height}
         onClick={handleStageClick}
+        onMouseDown={handleStageMouseDown}
         onMouseMove={handleStageMouseMove}
         onTap={handleStageClick}
         style={{ cursor: isCalibrating ? 'crosshair' : 'default' }}
@@ -308,10 +319,11 @@ function App() {
           {/* Floor plan background image */}
           {floorPlanImage && (
             <KonvaImage
+              name="floor-plan"
               image={floorPlanImage}
               x={0}
               y={0}
-              listening={false} // Background should not be interactive
+              listening
             />
           )}
 
@@ -327,6 +339,7 @@ function App() {
               item={item}
               isSelected={item.id === selectedId}
               onSelect={() => setSelectedId(item.id)}
+              onDelete={() => deleteFurniture(item.id)}
               onDragEnd={(e) => handleDragEnd(item.id, e)}
               onTransformEnd={(e) => handleTransformEnd(item.id, e)}
             />
