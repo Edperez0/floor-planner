@@ -1,7 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Stage, Layer, Image as KonvaImage } from 'react-konva';
 import useImage from './hooks/useImage';
 import { useFurnitureUndoRedo } from './hooks/useFurnitureUndoRedo';
+import { sortFurnitureForCanvas } from './utils/furnitureRenderOrder';
 import Toolbar from './components/Toolbar';
 import FurnitureItem from './components/FurnitureItem';
 import CalibrationLine from './components/CalibrationLine';
@@ -324,6 +325,11 @@ function App() {
 
   const selectedFurniture = furniture.find(f => f.id === selectedId);
 
+  const furnitureForCanvas = useMemo(
+    () => sortFurnitureForCanvas(furniture),
+    [furniture]
+  );
+
   return (
     <div
       className="app"
@@ -409,8 +415,8 @@ function App() {
             <CalibrationLine line={calibrationLine} />
           )}
 
-          {/* Furniture items */}
-          {furniture.map((item) => (
+          {/* Furniture items (rugs drawn first so they sit under other pieces) */}
+          {furnitureForCanvas.map((item) => (
             <FurnitureItem
               key={item.id}
               item={item}

@@ -66,25 +66,28 @@ function FurniturePanel({ onAddFurniture, selectedFurniture, onUpdateFurniture, 
 
   return (
     <div className="furniture-panel">
-      <div className="panel-section">
+      <div className="panel-section panel-section--presets">
         <h3>Furniture Presets</h3>
         {!isCalibrated && (
           <p className="warning">⚠️ Calibrate scale first</p>
         )}
-        <div className="presets-grid">
-          {FURNITURE_PRESETS.map((preset, index) => (
-            <button
-              key={index}
-              className="preset-btn"
-              onClick={() => handleAddPreset(preset)}
-              disabled={!isCalibrated}
-            >
-              {preset.name}
-              <span className="preset-size">
-                {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
-              </span>
-            </button>
-          ))}
+        <div className="presets-scroll" aria-label="Furniture preset list">
+          <div className="presets-grid">
+            {FURNITURE_PRESETS.map((preset, index) => (
+              <button
+                key={index}
+                type="button"
+                className="preset-btn"
+                onClick={() => handleAddPreset(preset)}
+                disabled={!isCalibrated}
+              >
+                {preset.name}
+                <span className="preset-size">
+                  {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
