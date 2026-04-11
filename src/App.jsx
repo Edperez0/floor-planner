@@ -694,19 +694,6 @@ function App() {
         if (el.isContentEditable) return;
       }
 
-      if (ev.key === 'Escape' && panMode) {
-        ev.preventDefault();
-        setPanMode(false);
-        if (panDragRef.current) {
-          try {
-            stageRef.current?.container().releasePointerCapture(panDragRef.current.pointerId);
-          } catch (_) {}
-          panDragRef.current = null;
-          setIsPanDragging(false);
-        }
-        return;
-      }
-
       const meta = ev.metaKey || ev.ctrlKey;
       if (meta && ev.key.toLowerCase() === 'z') {
         ev.preventDefault();
@@ -725,7 +712,7 @@ function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, deleteFurniture, undo, redo, panMode]);
+  }, [selectedId, deleteFurniture, undo, redo]);
 
   const selectedFurniture = furniture.find(f => f.id === selectedId);
 
@@ -860,7 +847,7 @@ function App() {
               </Stage>
               {panMode && (
                 <div className="canvas-pan-mode-toast" role="status">
-                  Pan mode on — drag to move the view. Double-click the floor or press Esc to exit.
+                  Pan mode on — drag to move the view. Double-click the canvas background to turn Pan mode off.
                 </div>
               )}
               <div
@@ -873,7 +860,7 @@ function App() {
                   className="canvas-map-controls__lock"
                   onClick={() => setCanvasViewLocked((v) => !v)}
                   aria-pressed={canvasViewLocked}
-                  title="Lock/Unlock background panning and zooming"
+                  title="Lock/Unlock background. Double-click the canvas to toggle Pan Mode."
                   aria-label={
                     canvasViewLocked
                       ? 'Unlock background panning and zooming'
@@ -1066,7 +1053,7 @@ function App() {
             <h2>Upload a Floor Plan to Get Started</h2>
             <p>Drag and drop an image here or click the button below</p>
             <p className="upload-hint">
-              Double-click the floor plan to turn Pan mode on (then drag to move). Ctrl+scroll to zoom.
+              Double-click the canvas background to toggle Pan mode (then drag to move the view). Ctrl+scroll to zoom.
             </p>
             <button type="button" onClick={() => fileInputRef.current?.click()} className="upload-btn">
               Choose Floor Plan Image
