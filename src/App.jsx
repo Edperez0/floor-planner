@@ -17,6 +17,16 @@ import './App.css';
 
 const MAP_ZOOM_STEP = 1.1;
 
+/** Walk to the draggable furniture Group (target may be a child shape). */
+function getFurnitureGroupFromEvent(e) {
+  let node = e.target;
+  while (node) {
+    if (typeof node.name === 'function' && node.name() === 'furniture') return node;
+    node = node.getParent?.();
+  }
+  return null;
+}
+
 function App() {
   const [floorPlanUrl, setFloorPlanUrl] = useState(null);
   const [floorPlanImage] = useImage(floorPlanUrl);
@@ -520,33 +530,45 @@ function App() {
     [applyProjectSnapshot]
   );
 
-  // Handle furniture drag
-  const handleDragEnd = (id, e) => {
-    const node = e.target;
-    commitFurniture((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, x: node.x(), y: node.y() } : f))
-    );
-  };
+  // Read id from the Konva node so these callbacks stay stable — avoids per-render child updates during pan/zoom.
+  const handleFurnitureDragEnd = useCallback(
+    (e) => {
+      const group = getFurnitureGroupFromEvent(e);
+      if (!group) return;
+      const id = group.id();
+      if (id == null || id === '') return;
+      commitFurniture((prev) =>
+        prev.map((f) => (f.id === String(id) ? { ...f, x: group.x(), y: group.y() } : f))
+      );
+    },
+    [commitFurniture]
+  );
 
   // Rotation / move only — dimensions stay tied to calibration (panel updates size)
-  const handleTransformEnd = (id, e) => {
-    const node = e.target;
-    node.scaleX(1);
-    node.scaleY(1);
+  const handleFurnitureTransformEnd = useCallback(
+    (e) => {
+      const group = getFurnitureGroupFromEvent(e);
+      if (!group) return;
+      const id = group.id();
+      if (id == null || id === '') return;
+      group.scaleX(1);
+      group.scaleY(1);
 
-    commitFurniture((prev) =>
-      prev.map((f) =>
-        f.id === id
-          ? {
-              ...f,
-              x: node.x(),
-              y: node.y(),
-              rotation: node.rotation(),
-            }
-          : f
-      )
-    );
-  };
+      commitFurniture((prev) =>
+        prev.map((f) =>
+          f.id === String(id)
+            ? {
+                ...f,
+                x: group.x(),
+                y: group.y(),
+                rotation: group.rotation(),
+              }
+            : f
+        )
+      );
+    },
+    [commitFurniture]
+  );
 
   /** True if double-click hit furniture or its selection chrome (not background). */
   const hitIsFurnitureOrChrome = useCallback((target) => {
@@ -820,8 +842,8 @@ function App() {
                         onSelect={() => setSelectedId(item.id)}
                         onDeselect={() => setSelectedId(null)}
                         onColorChange={(hex) => updateFurnitureColor(item.id, hex)}
-                        onDragEnd={(e) => handleDragEnd(item.id, e)}
-                        onTransformEnd={(e) => handleTransformEnd(item.id, e)}
+                        onDragEnd={handleFurnitureDragEnd}
+                        onTransformEnd={handleFurnitureTransformEnd}
                       />
                     ))}
                   </Group>

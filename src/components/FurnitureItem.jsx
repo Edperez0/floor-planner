@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState, memo } from 'react';
 import { Group, Rect, Text, Transformer, Line } from 'react-konva';
 import { defaultFillColorForType } from '../utils/furnitureColors';
 
@@ -8,7 +8,11 @@ const TOOLBAR_Y = 38;
 const CORNER = 9;
 const CORNER_STROKE = 1.5;
 
-function FurnitureItem({
+/**
+ * While dragging, we omit x/y props so parent re-renders (pan/zoom) cannot reset the Konva node
+ * to stale React state — that was causing visible lag / cursor trailing.
+ */
+function FurnitureItemInner({
   item,
   isSelected,
   panMode = false,
@@ -20,6 +24,7 @@ function FurnitureItem({
 }) {
   const groupRef = useRef();
   const trRef = useRef();
+  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     if (isSelected && trRef.current && groupRef.current) {
@@ -79,13 +84,27 @@ function FurnitureItem({
 
   const interactive = !panMode;
 
+  const handleDragStart = useCallback(() => {
+    setDragging(true);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (e) => {
+      onDragEnd(e);
+      setDragging(false);
+    },
+    [onDragEnd]
+  );
+
+  const positionProps = dragging ? {} : { x: item.x, y: item.y };
+
   return (
     <>
       <Group
         ref={groupRef}
+        id={String(item.id)}
         name="furniture"
-        x={item.x}
-        y={item.y}
+        {...positionProps}
         rotation={item.rotation}
         offsetX={w / 2}
         offsetY={h / 2}
@@ -93,7 +112,8 @@ function FurnitureItem({
         draggable={interactive}
         onClick={onSelect}
         onTap={onSelect}
-        onDragEnd={onDragEnd}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
         onTransformEnd={onTransformEnd}
       >
         <Rect
@@ -156,36 +176,17 @@ function FurnitureItem({
             />
           </Group>
         )}
-      </Group>
-      {isSelected && (
-        <Transformer
-          ref={trRef}
-          listening={interactive}
-          rotateEnabled
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
-          enabledAnchors={[]}
-          borderEnabled
-          borderStroke="#64748b"
-          borderStrokeWidth={1}
-          borderDash={[5, 5]}
-          padding={8}
-          boundBoxFunc={(oldBox, newBox) => newBox}
-        />
-      )}
-      {isSelected && (
-        <Group
-          name="furniture-selection-toolbar"
-          listening={interactive}
-          x={item.x}
-          y={item.y}
-          rotation={item.rotation}
-          offsetX={w / 2}
-          offsetY={h / 2}
-          onPointerDown={stopPointerBubble}
-          onMouseDown={stopPointerBubble}
-          onTouchStart={stopPointerBubble}
-        >
-          <Group x={toolbarX} y={toolbarY}>
+
+        {isSelected && (
+          <Group
+            name="furniture-selection-toolbar"
+            x={toolbarX}
+            y={toolbarY}
+            listening={interactive}
+            onPointerDown={stopPointerBubble}
+            onMouseDown={stopPointerBubble}
+            onTouchStart={stopPointerBubble}
+          >
             <Group onClick={handleToolbarColor} onTap={handleToolbarColor}>
               <Rect
                 x={0}
@@ -244,10 +245,34 @@ function FurnitureItem({
               />
             </Group>
           </Group>
-        </Group>
+        )}
+      </Group>
+      {isSelected && (
+        <Transformer
+          ref={trRef}
+          listening={interactive}
+          rotateEnabled
+          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+          enabledAnchors={[]}
+          borderEnabled
+          borderStroke="#64748b"
+          borderStrokeWidth={1}
+          borderDash={[5, 5]}
+          padding={8}
+          boundBoxFunc={(oldBox, newBox) => newBox}
+        />
       )}
     </>
   );
 }
+
+/** Skip re-renders from parent pan/zoom when this item's data and selection did not change. */
+const FurnitureItem = memo(FurnitureItemInner, (prev, next) => {
+  return (
+    prev.item === next.item &&
+    prev.isSelected === next.isSelected &&
+    prev.panMode === next.panMode
+  );
+});
 
 export default FurnitureItem;
