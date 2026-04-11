@@ -832,6 +832,79 @@ function App() {
               >
                 <button
                   type="button"
+                  className="canvas-map-controls__lock"
+                  onClick={() => setCanvasViewLocked((v) => !v)}
+                  aria-pressed={canvasViewLocked}
+                  title="Lock/Unlock background panning and zooming"
+                  aria-label={
+                    canvasViewLocked
+                      ? 'Unlock background panning and zooming'
+                      : 'Lock background panning and zooming'
+                  }
+                >
+                  {canvasViewLocked ? (
+                    <svg
+                      className="canvas-map-controls__icon"
+                      viewBox="0 0 24 24"
+                      width="22"
+                      height="22"
+                      aria-hidden
+                    >
+                      <rect
+                        x="5"
+                        y="11"
+                        width="14"
+                        height="10"
+                        rx="1.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                      />
+                      <path
+                        d="M8 11V8a4 4 0 0 1 8 0v3"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="canvas-map-controls__icon"
+                      viewBox="0 0 24 24"
+                      width="22"
+                      height="22"
+                      aria-hidden
+                    >
+                      <rect
+                        x="5"
+                        y="11"
+                        width="14"
+                        height="10"
+                        rx="1.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                      />
+                      <path
+                        d="M8 11V8a4 4 0 0 1 7.5-2.2"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M16 5.5V8"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )}
+                </button>
+                <button
+                  type="button"
                   className="canvas-map-controls__recenter"
                   onClick={resetCanvasView}
                   title="Recenter view"
@@ -932,8 +1005,6 @@ function App() {
               onUpdateFurnitureColor={updateFurnitureColor}
               onDeleteFurniture={deleteFurniture}
               isCalibrated={!!pixelsPerInch}
-              canvasViewLocked={canvasViewLocked}
-              onToggleCanvasViewLock={() => setCanvasViewLocked((v) => !v)}
             />
           </aside>
         </div>
