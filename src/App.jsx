@@ -4,7 +4,12 @@ import { Stage, Layer, Group, Image as KonvaImage } from 'react-konva';
 import useImage from './hooks/useImage';
 import { useFurnitureUndoRedo } from './hooks/useFurnitureUndoRedo';
 import { sortFurnitureForCanvas } from './utils/furnitureRenderOrder';
-import { serializeProject, parseProjectFile, normalizeCustomPreset } from './utils/projectFile';
+import {
+  serializeProject,
+  parseProjectFile,
+  normalizeCustomPreset,
+  parseStoredFurnitureJson,
+} from './utils/projectFile';
 import { defaultFillColorForType } from './utils/furnitureColors';
 import { clampScale, stageToWorld } from './utils/canvasViewMath';
 import Toolbar from './components/Toolbar';
@@ -21,8 +26,9 @@ const MAP_ZOOM_STEP = 1.1;
 const LS_FLOOR_PLAN = 'floorPlanImage';
 const LS_PIXELS_PER_INCH = 'pixelsPerInch';
 const LS_CUSTOM_PRESETS = 'customPresets';
-/** Session persistence for furniture (read/write added with fix; used by debug logs pre-fix). */
+/** Session persistence for furniture and pan/zoom (survives refresh). */
 const LS_FURNITURE = 'floorPlanFurniture';
+const LS_CANVAS_VIEW = 'floorPlanCanvasView';
 
 function readStoredFloorPlanUrl() {
   if (typeof localStorage === 'undefined') return null;
@@ -60,7 +66,34 @@ function readStoredCustomPresets() {
   }
 }
 
+function readStoredCanvasView() {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(LS_CANVAS_VIEW);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o || typeof o !== 'object') return null;
+    const vx = Number(o.viewX);
+    const vy = Number(o.viewY);
+    const vs = Number(o.viewScale);
+    if (Number.isNaN(vx) || Number.isNaN(vy) || Number.isNaN(vs)) return null;
+    return { viewX: vx, viewY: vy, viewScale: clampScale(vs) };
+  } catch {
+    return null;
+  }
+}
+
 function App() {
+  const initialFurniture = useMemo(() => {
+    if (typeof localStorage === 'undefined') return [];
+    try {
+      const raw = localStorage.getItem(LS_FURNITURE);
+      return parseStoredFurnitureJson(raw ?? '');
+    } catch {
+      return [];
+    }
+  }, []);
+
   const [floorPlanUrl, setFloorPlanUrl] = useState(readStoredFloorPlanUrl);
   const [floorPlanImage] = useImage(floorPlanUrl);
   const {
@@ -72,7 +105,7 @@ function App() {
     canRedo,
     resetAll: resetFurnitureUndo,
     loadSnapshot,
-  } = useFurnitureUndoRedo();
+  } = useFurnitureUndoRedo(initialFurniture);
   const [selectedId, setSelectedId] = useState(null);
   const [pixelsPerInch, setPixelsPerInch] = useState(readStoredPpi); // Core calibration value
   const [isCalibrating, setIsCalibrating] = useState(false);
@@ -84,9 +117,10 @@ function App() {
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const [isDraggingFile, setIsDraggingFile] = useState(false);
-  const [viewX, setViewX] = useState(0);
-  const [viewY, setViewY] = useState(0);
-  const [viewScale, setViewScale] = useState(1);
+  const initialCanvasView = useMemo(() => readStoredCanvasView(), []);
+  const [viewX, setViewX] = useState(() => initialCanvasView?.viewX ?? 0);
+  const [viewY, setViewY] = useState(() => initialCanvasView?.viewY ?? 0);
+  const [viewScale, setViewScale] = useState(() => initialCanvasView?.viewScale ?? 1);
   const [canvasViewLocked, setCanvasViewLocked] = useState(false);
   /** True while Space is held (not typing in a field) — grab cursor; LMB pans. */
   const [spacePanActive, setSpacePanActive] = useState(false);
@@ -107,22 +141,33 @@ function App() {
   // #region agent log
   useEffect(() => {
     let storedLen = null;
+    let storedCanvasLen = null;
     try {
       const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LS_FURNITURE) : null;
       storedLen = raw != null ? raw.length : null;
+      const rawV = typeof localStorage !== 'undefined' ? localStorage.getItem(LS_CANVAS_VIEW) : null;
+      storedCanvasLen = rawV != null ? rawV.length : null;
     } catch {
       storedLen = -1;
+      storedCanvasLen = -1;
     }
     fetch('http://127.0.0.1:7687/ingest/2e6ba286-1170-4a08-829f-40c18e955fd4', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '548a6c' },
       body: JSON.stringify({
         sessionId: '548a6c',
-        runId: 'pre-fix',
+        runId: 'post-fix',
         hypothesisId: 'H1',
         location: 'App.jsx:mount',
-        message: 'Initial furniture vs stored session',
-        data: { furnitureCount: furniture.length, storedJsonChars: storedLen },
+        message: 'Hydration: furniture + canvas vs localStorage',
+        data: {
+          furnitureCount: furniture.length,
+          storedFurnitureJsonChars: storedLen,
+          storedCanvasJsonChars: storedCanvasLen,
+          viewX,
+          viewY,
+          viewScale,
+        },
         timestamp: Date.now(),
       }),
     }).catch(() => {});
@@ -144,6 +189,22 @@ function App() {
       /* ignore quota errors */
     }
   }, [customPresets]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_FURNITURE, JSON.stringify(furniture));
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [furniture]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_CANVAS_VIEW, JSON.stringify({ viewX, viewY, viewScale }));
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [viewX, viewY, viewScale]);
 
   useEffect(() => {
     return () => {
@@ -609,6 +670,8 @@ function App() {
     localStorage.removeItem(LS_FLOOR_PLAN);
     localStorage.removeItem(LS_PIXELS_PER_INCH);
     localStorage.removeItem(LS_CUSTOM_PRESETS);
+    localStorage.removeItem(LS_FURNITURE);
+    localStorage.removeItem(LS_CANVAS_VIEW);
     setFloorPlanUrl(null);
     resetFurnitureUndo();
     setSelectedId(null);

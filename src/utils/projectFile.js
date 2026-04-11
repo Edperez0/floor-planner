@@ -34,6 +34,29 @@ function normalizeFurnitureItem(raw, index) {
 }
 
 /**
+ * Parse furniture JSON saved in localStorage; skips invalid rows (same shape as project file items).
+ * @param {string} text
+ */
+export function parseStoredFurnitureJson(text) {
+  if (!text || typeof text !== 'string') return [];
+  try {
+    const arr = JSON.parse(text);
+    if (!Array.isArray(arr)) return [];
+    const out = [];
+    arr.forEach((raw, i) => {
+      try {
+        out.push(normalizeFurnitureItem(raw, i));
+      } catch {
+        /* skip invalid row */
+      }
+    });
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/**
  * @param {unknown} raw
  * @param {number} index
  */

@@ -20,6 +20,14 @@ const initialState = {
   redo: [],
 };
 
+function initFurnitureState(initialFurniture) {
+  return {
+    furniture: cloneItems(Array.isArray(initialFurniture) ? initialFurniture : []),
+    past: [],
+    redo: [],
+  };
+}
+
 function furnitureReducer(state, action) {
   const { furniture, past, redo } = state;
 
@@ -86,8 +94,8 @@ function furnitureReducer(state, action) {
  * Use commitFurniture for add / move / rotate / resize / delete.
  * Use resetAll after clearing the canvas so stacks do not restore removed items.
  */
-export function useFurnitureUndoRedo() {
-  const [state, dispatch] = useReducer(furnitureReducer, initialState);
+export function useFurnitureUndoRedo(initialFurniture = []) {
+  const [state, dispatch] = useReducer(furnitureReducer, initialFurniture, initFurnitureState);
 
   const commitFurniture = useCallback((updater) => {
     dispatch({ type: 'COMMIT', updater });
