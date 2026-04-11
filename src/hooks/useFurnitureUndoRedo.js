@@ -53,12 +53,29 @@ function furnitureReducer(state, action) {
     }
     case 'RESET_ALL':
       return initialState;
-    case 'LOAD_SNAPSHOT':
+    case 'LOAD_SNAPSHOT': {
+      // #region agent log
+      const _len = Array.isArray(action.furniture) ? action.furniture.length : -1;
+      fetch('http://127.0.0.1:7687/ingest/2e6ba286-1170-4a08-829f-40c18e955fd4', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '548a6c' },
+        body: JSON.stringify({
+          sessionId: '548a6c',
+          runId: 'pre-fix',
+          hypothesisId: 'H2',
+          location: 'useFurnitureUndoRedo.js:LOAD_SNAPSHOT',
+          message: 'Reducer LOAD_SNAPSHOT',
+          data: { incomingLen: _len },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {});
+      // #endregion
       return {
         furniture: cloneItems(action.furniture),
         past: [],
         redo: [],
       };
+    }
     default:
       return state;
   }
