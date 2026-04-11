@@ -138,42 +138,6 @@ function App() {
   const canvasHostRef = useRef(null);
   const calibrationToastTimerRef = useRef(null);
 
-  // #region agent log
-  useEffect(() => {
-    let storedLen = null;
-    let storedCanvasLen = null;
-    try {
-      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LS_FURNITURE) : null;
-      storedLen = raw != null ? raw.length : null;
-      const rawV = typeof localStorage !== 'undefined' ? localStorage.getItem(LS_CANVAS_VIEW) : null;
-      storedCanvasLen = rawV != null ? rawV.length : null;
-    } catch {
-      storedLen = -1;
-      storedCanvasLen = -1;
-    }
-    fetch('http://127.0.0.1:7687/ingest/2e6ba286-1170-4a08-829f-40c18e955fd4', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '548a6c' },
-      body: JSON.stringify({
-        sessionId: '548a6c',
-        runId: 'post-fix',
-        hypothesisId: 'H1',
-        location: 'App.jsx:mount',
-        message: 'Hydration: furniture + canvas vs localStorage',
-        data: {
-          furnitureCount: furniture.length,
-          storedFurnitureJsonChars: storedLen,
-          storedCanvasJsonChars: storedCanvasLen,
-          viewX,
-          viewY,
-          viewScale,
-        },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-  }, []);
-  // #endregion
-
   useEffect(() => {
     if (pixelsPerInch == null) {
       localStorage.removeItem(LS_PIXELS_PER_INCH);
@@ -652,21 +616,6 @@ function App() {
   const hasCanvasContent = !!floorPlanUrl || furniture.length > 0;
 
   const confirmClearCanvas = useCallback(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7687/ingest/2e6ba286-1170-4a08-829f-40c18e955fd4', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '548a6c' },
-      body: JSON.stringify({
-        sessionId: '548a6c',
-        runId: 'pre-fix',
-        hypothesisId: 'H4',
-        location: 'App.jsx:confirmClearCanvas',
-        message: 'Clear canvas confirmed',
-        data: { furnitureCount: furniture.length },
-        timestamp: Date.now(),
-      }),
-    }).catch(() => {});
-    // #endregion
     localStorage.removeItem(LS_FLOOR_PLAN);
     localStorage.removeItem(LS_PIXELS_PER_INCH);
     localStorage.removeItem(LS_CUSTOM_PRESETS);
@@ -706,24 +655,6 @@ function App() {
 
   const applyProjectSnapshot = useCallback(
     (data) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7687/ingest/2e6ba286-1170-4a08-829f-40c18e955fd4', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '548a6c' },
-        body: JSON.stringify({
-          sessionId: '548a6c',
-          runId: 'pre-fix',
-          hypothesisId: 'H3',
-          location: 'App.jsx:applyProjectSnapshot',
-          message: 'Applying project snapshot',
-          data: {
-            furnitureIn: Array.isArray(data?.furniture) ? data.furniture.length : null,
-            hasFloorPlan: !!data?.floorPlanImage,
-          },
-          timestamp: Date.now(),
-        }),
-      }).catch(() => {});
-      // #endregion
       setShowCalibrationModal(false);
       setShowClearConfirm(false);
       setShowTemplatesModal(false);
