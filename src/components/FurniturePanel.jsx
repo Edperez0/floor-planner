@@ -36,6 +36,8 @@ function FurniturePanel({
   onUpdateFurnitureColor,
   onDeleteFurniture,
   isCalibrated,
+  hasFloorPlan,
+  onStartCalibration,
 }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [furnitureName, setFurnitureName] = useState('');
@@ -62,10 +64,7 @@ function FurniturePanel({
   }, [selectedFurniture]);
 
   const handleAddPreset = (preset) => {
-    if (!isCalibrated) {
-      alert('Please calibrate the floor plan first!');
-      return;
-    }
+    if (!isCalibrated) return;
     onAddFurniture(
       preset.name,
       preset.width.feet,
@@ -102,10 +101,7 @@ function FurniturePanel({
   };
 
   const handleAddCustomPresetRow = (preset) => {
-    if (!isCalibrated) {
-      alert('Please calibrate the floor plan first!');
-      return;
-    }
+    if (!isCalibrated) return;
     onAddFurniture(
       preset.name,
       preset.width.feet,
@@ -163,155 +159,160 @@ function FurniturePanel({
   return (
     <div className="furniture-panel">
       <div className="furniture-panel__main">
-        {!isCalibrated && (
-          <div className="panel-section panel-section--calibration-warning">
-            <p className="warning">⚠️ Calibrate scale first</p>
-          </div>
-        )}
-      <div className="panel-section panel-section--presets">
-        <h3>Furniture Presets</h3>
-        <div className="presets-scroll" aria-label="Furniture preset list">
-          <ul className="preset-list">
-            {FURNITURE_PRESETS.map((preset, index) => (
-              <li
-                key={preset.name + index}
-                className="preset-item-card"
-                style={{ backgroundColor: preset.color }}
-              >
-                <button
-                  type="button"
-                  className="preset-item-place"
-                  onClick={() => handleAddPreset(preset)}
-                  disabled={!isCalibrated}
-                >
-                  <div className="preset-item-bubble">
-                    <span className="preset-name">{preset.name}</span>
-                    <span className="preset-dims">
-                      {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
-                    </span>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      <div className="panel-section panel-section--presets">
-        <h3>Custom Furniture</h3>
-        <div className="presets-scroll" aria-label="Custom furniture preset list">
-          {customPresets.length === 0 ? (
-            <p className="custom-presets-empty">
-              No custom items yet — use + Add Custom below.
+        {hasFloorPlan && !isCalibrated && (
+          <div className="panel-section furniture-panel__next-step">
+            <p className="furniture-panel__next-step-title">
+              <strong>Step 2: Set Your Scale</strong>
             </p>
-          ) : (
-            <ul className="preset-list">
-              {customPresets.map((preset) => (
-                <li
-                  key={preset.id}
-                  className="preset-item-card preset-item-card--with-delete"
-                  style={{ backgroundColor: preset.color }}
-                >
-                  <button
-                    type="button"
-                    className="preset-item-place"
-                    onClick={() => handleAddCustomPresetRow(preset)}
-                    disabled={!isCalibrated}
-                  >
-                    <div className="preset-item-bubble">
-                      <span className="preset-name">{preset.name}</span>
-                      <span className="preset-dims">
-                        {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
-                      </span>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    className="custom-preset-delete"
-                    onClick={(e) => handleDeleteCustomPresetClick(e, preset.id)}
-                    aria-label={`Remove custom preset ${preset.name}`}
-                    title="Remove from list"
-                  >
-                    ×
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      <div className="panel-section">
-        <button
-          type="button"
-          className="toggle-form-btn"
-          onClick={() => setShowAddForm(!showAddForm)}
-          disabled={!isCalibrated}
-        >
-          {showAddForm ? '− Hide Custom' : '+ Add Custom'}
-        </button>
-
-        {showAddForm && (
-          <div className="add-form">
-            <input
-              type="text"
-              placeholder="Furniture name"
-              value={furnitureName}
-              onChange={(e) => setFurnitureName(e.target.value)}
-            />
-            <div className="color-row">
-              <label htmlFor="custom-fill-color">Color</label>
-              <input
-                id="custom-fill-color"
-                type="color"
-                value={customFillColor}
-                onChange={(e) => setCustomFillColor(e.target.value)}
-                title="Background color"
-              />
-            </div>
-            <div className="dimension-row">
-              <label>Width:</label>
-              <input
-                type="number"
-                min="0"
-                placeholder="ft"
-                value={widthFeet}
-                onChange={(e) => setWidthFeet(e.target.value)}
-              />
-              <input
-                type="number"
-                min="0"
-                max="11"
-                placeholder="in"
-                value={widthInches}
-                onChange={(e) => setWidthInches(e.target.value)}
-              />
-            </div>
-            <div className="dimension-row">
-              <label>Depth:</label>
-              <input
-                type="number"
-                min="0"
-                placeholder="ft"
-                value={depthFeet}
-                onChange={(e) => setDepthFeet(e.target.value)}
-              />
-              <input
-                type="number"
-                min="0"
-                max="11"
-                placeholder="in"
-                value={depthInches}
-                onChange={(e) => setDepthInches(e.target.value)}
-              />
-            </div>
-            <button type="button" className="add-btn" onClick={handleAddCustom}>
-              Save to Custom Furniture
+            <button type="button" className="furniture-panel__calibrate-cta" onClick={onStartCalibration}>
+              Calibrate Now
             </button>
           </div>
         )}
-      </div>
+        <div
+          className={!isCalibrated ? 'furniture-panel__uncalibrated-furniture' : undefined}
+        >
+          <div className="panel-section panel-section--presets">
+            <h3>Furniture Presets</h3>
+            <div className="presets-scroll" aria-label="Furniture preset list">
+              <ul className="preset-list">
+                {FURNITURE_PRESETS.map((preset, index) => (
+                  <li
+                    key={preset.name + index}
+                    className="preset-item-card"
+                    style={{ backgroundColor: preset.color }}
+                  >
+                    <button
+                      type="button"
+                      className="preset-item-place"
+                      onClick={() => handleAddPreset(preset)}
+                    >
+                      <div className="preset-item-bubble">
+                        <span className="preset-name">{preset.name}</span>
+                        <span className="preset-dims">
+                          {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
 
+          <div className="panel-section panel-section--presets">
+            <h3>Custom Furniture</h3>
+            <div className="presets-scroll" aria-label="Custom furniture preset list">
+              {customPresets.length === 0 ? (
+                <p className="custom-presets-empty">
+                  No custom items yet — use + Add Custom below.
+                </p>
+              ) : (
+                <ul className="preset-list">
+                  {customPresets.map((preset) => (
+                    <li
+                      key={preset.id}
+                      className="preset-item-card preset-item-card--with-delete"
+                      style={{ backgroundColor: preset.color }}
+                    >
+                      <button
+                        type="button"
+                        className="preset-item-place"
+                        onClick={() => handleAddCustomPresetRow(preset)}
+                      >
+                        <div className="preset-item-bubble">
+                          <span className="preset-name">{preset.name}</span>
+                          <span className="preset-dims">
+                            {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
+                          </span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="custom-preset-delete"
+                        onClick={(e) => handleDeleteCustomPresetClick(e, preset.id)}
+                        aria-label={`Remove custom preset ${preset.name}`}
+                        title="Remove from list"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <div className="panel-section">
+            <button
+              type="button"
+              className="toggle-form-btn"
+              onClick={() => setShowAddForm(!showAddForm)}
+            >
+              {showAddForm ? '− Hide Custom' : '+ Add Custom'}
+            </button>
+
+            {showAddForm && (
+              <div className="add-form">
+                <input
+                  type="text"
+                  placeholder="Furniture name"
+                  value={furnitureName}
+                  onChange={(e) => setFurnitureName(e.target.value)}
+                />
+                <div className="color-row">
+                  <label htmlFor="custom-fill-color">Color</label>
+                  <input
+                    id="custom-fill-color"
+                    type="color"
+                    value={customFillColor}
+                    onChange={(e) => setCustomFillColor(e.target.value)}
+                    title="Background color"
+                  />
+                </div>
+                <div className="dimension-row">
+                  <label>Width:</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="ft"
+                    value={widthFeet}
+                    onChange={(e) => setWidthFeet(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="11"
+                    placeholder="in"
+                    value={widthInches}
+                    onChange={(e) => setWidthInches(e.target.value)}
+                  />
+                </div>
+                <div className="dimension-row">
+                  <label>Depth:</label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="ft"
+                    value={depthFeet}
+                    onChange={(e) => setDepthFeet(e.target.value)}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    max="11"
+                    placeholder="in"
+                    value={depthInches}
+                    onChange={(e) => setDepthInches(e.target.value)}
+                  />
+                </div>
+                <button type="button" className="add-btn" onClick={handleAddCustom}>
+                  Save to Custom Furniture
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
 
       {selectedFurniture && (
         <div className="panel-section selected-section">

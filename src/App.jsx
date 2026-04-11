@@ -1155,6 +1155,8 @@ function App() {
               onUpdateFurnitureColor={updateFurnitureColor}
               onDeleteFurniture={deleteFurniture}
               isCalibrated={!!pixelsPerInch}
+              hasFloorPlan={!!floorPlanUrl}
+              onStartCalibration={startCalibration}
             />
           </aside>
         </div>

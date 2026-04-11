@@ -39,10 +39,52 @@
   color: #2c3e50;
 }
 
-.warning {
-  color: #e74c3c;
-  font-size: 13px;
-  margin-bottom: 10px;
+/* Step 2 CTA — only when floor plan exists and scale not set yet */
+.furniture-panel__next-step {
+  background: linear-gradient(135deg, #e8f4fc 0%, #f0f9ff 100%);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.furniture-panel__next-step-title {
+  margin: 0 0 14px 0;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #1e3a5f;
+}
+
+.furniture-panel__calibrate-cta {
+  width: 100%;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+  background: #2563eb;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.furniture-panel__calibrate-cta:hover {
+  background: #1d4ed8;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.4);
+}
+
+.furniture-panel__calibrate-cta:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.furniture-panel__uncalibrated-furniture {
+  opacity: 0.5;
+}
+
+.furniture-panel__uncalibrated-furniture,
+.furniture-panel__uncalibrated-furniture * {
+  pointer-events: none;
 }
 
 .presets-scroll {
