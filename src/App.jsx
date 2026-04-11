@@ -85,12 +85,15 @@ function App() {
   const [viewY, setViewY] = useState(0);
   const [viewScale, setViewScale] = useState(1);
   const [canvasViewLocked, setCanvasViewLocked] = useState(false);
-  const [panMode, setPanMode] = useState(false);
+  /** True while Space is held (not typing in a field) — grab cursor; LMB pans. */
+  const [spacePanActive, setSpacePanActive] = useState(false);
   const [isPanDragging, setIsPanDragging] = useState(false);
   const [customPresets, setCustomPresets] = useState(readStoredCustomPresets);
   const stageRef = useRef(null);
   const worldGroupRef = useRef(null);
   const panDragRef = useRef(null);
+  /** 'space' | 'middle' — which gesture started the active pan drag. */
+  const panDragSourceRef = useRef(null);
   const canvasViewLockedRef = useRef(false);
   const viewRef = useRef({ viewX: 0, viewY: 0, viewScale: 1 });
   const fileInputRef = useRef(null);
@@ -164,14 +167,9 @@ function App() {
   }, [viewX, viewY, viewScale]);
 
   useEffect(() => {
-    if (!panMode) return;
-    setSelectedId(null);
-  }, [panMode]);
-
-  useEffect(() => {
     if (isPanDragging) {
       document.body.style.cursor = 'grabbing';
-    } else if (panMode) {
+    } else if (spacePanActive) {
       document.body.style.cursor = 'grab';
     } else {
       document.body.style.cursor = '';
@@ -179,7 +177,56 @@ function App() {
     return () => {
       document.body.style.cursor = '';
     };
-  }, [panMode, isPanDragging]);
+  }, [spacePanActive, isPanDragging]);
+
+  /** Space hold-to-pan; preventDefault on keydown avoids page scroll. */
+  useEffect(() => {
+    const typingTarget = (el) => {
+      if (!el || !(el instanceof HTMLElement)) return false;
+      const tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (el.isContentEditable) return true;
+      return false;
+    };
+
+    const endSpaceSourcedPan = () => {
+      if (panDragSourceRef.current !== 'space' || !panDragRef.current) return;
+      const pid = panDragRef.current.pointerId;
+      try {
+        stageRef.current?.container().releasePointerCapture(pid);
+      } catch (_) {}
+      panDragRef.current = null;
+      panDragSourceRef.current = null;
+      setIsPanDragging(false);
+    };
+
+    const onKeyDown = (e) => {
+      if (e.code !== 'Space' && e.key !== ' ') return;
+      if (typingTarget(document.activeElement)) return;
+      e.preventDefault();
+      if (!e.repeat) setSpacePanActive(true);
+    };
+
+    const onKeyUp = (e) => {
+      if (e.code !== 'Space' && e.key !== ' ') return;
+      setSpacePanActive(false);
+      endSpaceSourcedPan();
+    };
+
+    const onWindowBlur = () => {
+      setSpacePanActive(false);
+      endSpaceSourcedPan();
+    };
+
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('keyup', onKeyUp, true);
+    window.addEventListener('blur', onWindowBlur);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('keyup', onKeyUp, true);
+      window.removeEventListener('blur', onWindowBlur);
+    };
+  }, []);
 
   const resetCanvasView = useCallback(() => {
     setViewX(0);
@@ -334,7 +381,7 @@ function App() {
 
   // Start calibration mode
   const startCalibration = () => {
-    setPanMode(false);
+    setSpacePanActive(false);
     setIsCalibrating(true);
     setCalibrationLine(null);
   };
@@ -627,28 +674,6 @@ function App() {
     });
   }, [commitFurniture]);
 
-  /** True if double-click hit furniture or its selection chrome (not background). */
-  const hitIsFurnitureOrChrome = useCallback((target) => {
-    let node = target;
-    while (node) {
-      const name = typeof node.name === 'function' ? node.name() : '';
-      if (name === 'furniture' || name === 'furniture-selection-toolbar') return true;
-      const cls = node.getClassName?.();
-      if (cls === 'Transformer') return true;
-      node = node.getParent?.();
-    }
-    return false;
-  }, []);
-
-  const handlePanModeDblClick = useCallback(
-    (e) => {
-      if (isCalibrating) return;
-      if (hitIsFurnitureOrChrome(e.target)) return;
-      setPanMode((p) => !p);
-    },
-    [isCalibrating, hitIsFurnitureOrChrome]
-  );
-
   // Deselect when tapping floor / empty canvas (not when calibrating)
   const handleStageSurfaceDown = (e) => {
     if (isCalibrating) return;
@@ -664,18 +689,32 @@ function App() {
     }
   };
 
+  const startCanvasPanDrag = (e, source) => {
+    e.evt.preventDefault();
+    panDragSourceRef.current = source;
+    panDragRef.current = {
+      pointerId: e.evt.pointerId,
+      lastX: e.evt.clientX,
+      lastY: e.evt.clientY,
+    };
+    setIsPanDragging(true);
+    try {
+      stageRef.current?.container().setPointerCapture(e.evt.pointerId);
+    } catch (_) {}
+  };
+
   const handleCanvasPointerDown = (e) => {
-    if (panMode && !canvasViewLocked && e.evt.button === 0) {
-      e.evt.preventDefault();
-      panDragRef.current = {
-        pointerId: e.evt.pointerId,
-        lastX: e.evt.clientX,
-        lastY: e.evt.clientY,
-      };
-      setIsPanDragging(true);
-      try {
-        stageRef.current?.container().setPointerCapture(e.evt.pointerId);
-      } catch (_) {}
+    if (canvasViewLocked || isCalibrating) {
+      handleStageSurfaceDown(e);
+      return;
+    }
+    const btn = e.evt.button;
+    if (btn === 1) {
+      startCanvasPanDrag(e, 'middle');
+      return;
+    }
+    if (spacePanActive && btn === 0) {
+      startCanvasPanDrag(e, 'space');
       return;
     }
     handleStageSurfaceDown(e);
@@ -698,6 +737,7 @@ function App() {
   const handleCanvasPointerUp = (e) => {
     if (panDragRef.current?.pointerId === e.evt.pointerId) {
       panDragRef.current = null;
+      panDragSourceRef.current = null;
       setIsPanDragging(false);
       try {
         stageRef.current?.container().releasePointerCapture(e.evt.pointerId);
@@ -814,7 +854,7 @@ function App() {
           <div className="canvas-column">
             <div
               ref={canvasHostRef}
-              className={`canvas-host${panMode ? ' canvas-host--pan-mode' : ''}`}
+              className={`canvas-host${spacePanActive || isPanDragging ? ' canvas-host--pan-mode' : ''}`}
             >
               <Stage
                 ref={stageRef}
@@ -822,8 +862,6 @@ function App() {
                 height={canvasSize.height}
                 onClick={handleStageClick}
                 onTap={handleStageClick}
-                onDblClick={handlePanModeDblClick}
-                onDblTap={handlePanModeDblClick}
                 onWheel={handleCanvasWheel}
                 onContextMenu={(e) => e.evt.preventDefault()}
                 {...(typeof PointerEvent !== 'undefined'
@@ -846,7 +884,7 @@ function App() {
                     ? 'crosshair'
                     : isPanDragging
                       ? 'grabbing'
-                      : panMode
+                      : spacePanActive
                         ? 'grab'
                         : 'default',
                   touchAction: 'none',
@@ -882,7 +920,7 @@ function App() {
                         key={item.id}
                         item={item}
                         isSelected={item.id === selectedId}
-                        panMode={panMode}
+                        panMode={spacePanActive || isPanDragging}
                         onSelect={() => setSelectedId(item.id)}
                         onDelete={() => deleteFurniture(item.id)}
                         onDragEnd={handleFurnitureDragEnd}
@@ -892,9 +930,9 @@ function App() {
                   </Group>
                 </Layer>
               </Stage>
-              {panMode && (
+              {(spacePanActive || isPanDragging) && (
                 <div className="canvas-pan-mode-toast" role="status">
-                  Pan mode on — drag to move the view. Double-click the canvas background to turn Pan mode off.
+                  Pan — drag to move the view.
                 </div>
               )}
               <div
@@ -907,7 +945,7 @@ function App() {
                   className="canvas-map-controls__lock"
                   onClick={() => setCanvasViewLocked((v) => !v)}
                   aria-pressed={canvasViewLocked}
-                  title="Lock/Unlock background. Double-click the canvas to toggle Pan Mode."
+                  title="Lock/Unlock background. Hold Spacebar or Middle-Mouse click to pan."
                   aria-label={
                     canvasViewLocked
                       ? 'Unlock background panning and zooming'
@@ -1099,7 +1137,7 @@ function App() {
             <h2>Upload a Floor Plan to Get Started</h2>
             <p>Drag and drop an image here or click the button below</p>
             <p className="upload-hint">
-              Double-click the canvas background to toggle Pan mode (then drag to move the view). Ctrl+scroll to zoom.
+              Hold Spacebar or middle-click drag to pan the view. Ctrl+scroll to zoom.
             </p>
             <button type="button" onClick={() => fileInputRef.current?.click()} className="upload-btn">
               Choose Floor Plan Image
