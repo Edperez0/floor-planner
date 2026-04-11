@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { Stage, Layer, Group, Image as KonvaImage } from 'react-konva';
 import useImage from './hooks/useImage';
 import { useFurnitureUndoRedo } from './hooks/useFurnitureUndoRedo';
@@ -16,16 +17,6 @@ import TemplatesModal from './components/TemplatesModal';
 import './App.css';
 
 const MAP_ZOOM_STEP = 1.1;
-
-/** Walk to the draggable furniture Group (target may be a child shape). */
-function getFurnitureGroupFromEvent(e) {
-  let node = e.target;
-  while (node) {
-    if (typeof node.name === 'function' && node.name() === 'furniture') return node;
-    node = node.getParent?.();
-  }
-  return null;
-}
 
 function App() {
   const [floorPlanUrl, setFloorPlanUrl] = useState(null);
@@ -530,45 +521,26 @@ function App() {
     [applyProjectSnapshot]
   );
 
-  // Read id from the Konva node so these callbacks stay stable — avoids per-render child updates during pan/zoom.
-  const handleFurnitureDragEnd = useCallback(
-    (e) => {
-      const group = getFurnitureGroupFromEvent(e);
-      if (!group) return;
-      const id = group.id();
-      if (id == null || id === '') return;
+  /** Positions come from the item's Konva group ref — stable IDs and flushSync avoid snap-back after drag. */
+  const handleFurnitureDragEnd = useCallback((id, x, y) => {
+    flushSync(() => {
       commitFurniture((prev) =>
-        prev.map((f) => (f.id === String(id) ? { ...f, x: group.x(), y: group.y() } : f))
+        prev.map((f) => (String(f.id) === String(id) ? { ...f, x, y } : f))
       );
-    },
-    [commitFurniture]
-  );
+    });
+  }, [commitFurniture]);
 
-  // Rotation / move only — dimensions stay tied to calibration (panel updates size)
-  const handleFurnitureTransformEnd = useCallback(
-    (e) => {
-      const group = getFurnitureGroupFromEvent(e);
-      if (!group) return;
-      const id = group.id();
-      if (id == null || id === '') return;
-      group.scaleX(1);
-      group.scaleY(1);
-
+  const handleFurnitureTransformEnd = useCallback((id, x, y, rotation) => {
+    flushSync(() => {
       commitFurniture((prev) =>
         prev.map((f) =>
-          f.id === String(id)
-            ? {
-                ...f,
-                x: group.x(),
-                y: group.y(),
-                rotation: group.rotation(),
-              }
+          String(f.id) === String(id)
+            ? { ...f, x, y, rotation }
             : f
         )
       );
-    },
-    [commitFurniture]
-  );
+    });
+  }, [commitFurniture]);
 
   /** True if double-click hit furniture or its selection chrome (not background). */
   const hitIsFurnitureOrChrome = useCallback((target) => {
@@ -841,7 +813,6 @@ function App() {
                         panMode={panMode}
                         onSelect={() => setSelectedId(item.id)}
                         onDeselect={() => setSelectedId(null)}
-                        onColorChange={(hex) => updateFurnitureColor(item.id, hex)}
                         onDragEnd={handleFurnitureDragEnd}
                         onTransformEnd={handleFurnitureTransformEnd}
                       />
