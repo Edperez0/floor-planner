@@ -136,7 +136,14 @@ function FurnitureItemInner({
     };
   }, [isSelected, interactive, item.width, item.height, item.rotation]);
 
-  const fill = item.fillColor ?? defaultFillColorForType(item.type);
+  const fill = item.fillColor ?? defaultFillColorForType(item.type ?? '');
+  const rw = item.realWidth ?? { feet: 0, inches: 0 };
+  const rd = item.realDepth ?? { feet: 0, inches: 0 };
+  const w = Math.max(0, Number(item.width) || 0);
+  const h = Math.max(0, Number(item.height) || 0);
+  const rotation = Number(item.rotation);
+  const rotationSafe = Number.isFinite(rotation) ? rotation : 0;
+  const labelText = `${item.type ?? 'Item'}\n${rw.feet ?? 0}'${rw.inches ?? 0}" × ${rd.feet ?? 0}'${rd.inches ?? 0}"`;
 
   const stopPointerBubble = (e) => {
     e.cancelBubble = true;
@@ -152,9 +159,6 @@ function FurnitureItemInner({
     },
     [onDelete]
   );
-
-  const w = item.width;
-  const h = item.height;
 
   const closeX = w - CLOSE_HIT - INSET;
   const closeY = INSET;
@@ -217,11 +221,15 @@ function FurnitureItemInner({
     onTransformEnd(item.id, node.x(), node.y(), rotationOut);
   }, [item.id, onTransformEnd]);
 
-  const positionProps = dragging ? {} : { x: item.x, y: item.y };
+  const positionProps = dragging
+    ? {}
+    : { x: Number(item.x) || 0, y: Number(item.y) || 0 };
 
   /** White circular handle, map-style shadow, rotate icon — runs after Transformer batch attrs. */
   const anchorStyleFunc = useCallback((anchor) => {
-    const name = anchor.name().split(' ')[0];
+    if (!anchor || typeof anchor.name !== 'function' || typeof anchor.width !== 'function') return;
+    const rawName = anchor.name();
+    const name = typeof rawName === 'string' ? rawName.split(' ')[0] : '';
     if (name !== 'rotater') return;
 
     const sz = anchor.width();
@@ -248,7 +256,12 @@ function FurnitureItemInner({
     }
 
     icon.scale({ x: 1, y: 1 });
-    const sr = icon.getSelfRect();
+    let sr = { width: 1, height: 1, x: 0, y: 0 };
+    try {
+      sr = icon.getSelfRect();
+    } catch {
+      /* avoid rare Konva rect errors breaking selection */
+    }
     const scale = (sz * 0.45) / Math.max(sr.width, sr.height, 1);
     icon.scale({ x: scale, y: scale });
     icon.position({
@@ -264,7 +277,7 @@ function FurnitureItemInner({
         id={String(item.id)}
         name="furniture"
         {...positionProps}
-        rotation={item.rotation}
+        rotation={rotationSafe}
         offsetX={w / 2}
         offsetY={h / 2}
         listening={interactive}
@@ -296,7 +309,7 @@ function FurnitureItemInner({
         <Text
           x={0}
           y={0}
-          text={`${item.type}\n${item.realWidth.feet}'${item.realWidth.inches}" × ${item.realDepth.feet}'${item.realDepth.inches}"`}
+          text={labelText}
           fontSize={12}
           fill="white"
           align="center"

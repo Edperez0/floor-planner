@@ -50,17 +50,18 @@ function FurniturePanel({
   const [selectedHexText, setSelectedHexText] = useState('#8B7355');
 
   useEffect(() => {
-    if (selectedFurniture) {
-      setFurnitureName(selectedFurniture.type);
-      setWidthFeet(String(selectedFurniture.realWidth.feet));
-      setWidthInches(String(selectedFurniture.realWidth.inches));
-      setDepthFeet(String(selectedFurniture.realDepth.feet));
-      setDepthInches(String(selectedFurniture.realDepth.inches));
-      const hex =
-        selectedFurniture.fillColor ?? defaultFillColorForType(selectedFurniture.type);
-      setSelectedFillColor(hex);
-      setSelectedHexText(hex);
-    }
+    if (!selectedFurniture) return;
+    const rw = selectedFurniture.realWidth ?? { feet: 0, inches: 0 };
+    const rd = selectedFurniture.realDepth ?? { feet: 0, inches: 0 };
+    setFurnitureName(selectedFurniture.type ?? '');
+    setWidthFeet(String(rw.feet ?? 0));
+    setWidthInches(String(rw.inches ?? 0));
+    setDepthFeet(String(rd.feet ?? 0));
+    setDepthInches(String(rd.inches ?? 0));
+    const hex =
+      selectedFurniture.fillColor ?? defaultFillColorForType(selectedFurniture.type ?? '');
+    setSelectedFillColor(hex);
+    setSelectedHexText(hex);
   }, [selectedFurniture]);
 
   const handleAddPreset = (preset) => {
@@ -316,7 +317,7 @@ function FurniturePanel({
 
       {selectedFurniture && (
         <div className="panel-section selected-section">
-          <h3>Selected: {selectedFurniture.type}</h3>
+          <h3>Selected: {selectedFurniture.type ?? 'Item'}</h3>
           <div className="selected-color-field">
             <label className="selected-swatch-wrap" title="Item color">
               <input
@@ -378,7 +379,11 @@ function FurniturePanel({
           <button type="button" className="update-btn" onClick={handleUpdate}>
             Update Dimensions
           </button>
-          <button type="button" className="delete-btn" onClick={() => onDeleteFurniture(selectedFurniture.id)}>
+          <button
+            type="button"
+            className="delete-btn"
+            onClick={() => selectedFurniture?.id != null && onDeleteFurniture(selectedFurniture.id)}
+          >
             Delete
           </button>
         </div>

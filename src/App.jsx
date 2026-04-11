@@ -790,7 +790,7 @@ function App() {
   useEffect(() => {
     setSelectedId((sel) => {
       if (sel == null) return sel;
-      return furniture.some((f) => f.id === sel) ? sel : null;
+      return furniture.some((f) => String(f.id) === String(sel)) ? sel : null;
     });
   }, [furniture]);
 
@@ -824,7 +824,13 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [selectedId, deleteFurniture, undo, redo]);
 
-  const selectedFurniture = furniture.find(f => f.id === selectedId);
+  const selectedFurniture = useMemo(
+    () =>
+      selectedId == null
+        ? undefined
+        : furniture.find((f) => String(f.id) === String(selectedId)),
+    [furniture, selectedId]
+  );
 
   const furnitureForCanvas = useMemo(
     () => sortFurnitureForCanvas(furniture),
@@ -942,7 +948,7 @@ function App() {
                       <FurnitureItem
                         key={item.id}
                         item={item}
-                        isSelected={item.id === selectedId}
+                        isSelected={String(item.id) === String(selectedId)}
                         panMode={spacePanActive || isPanDragging}
                         onSelect={() => setSelectedId(item.id)}
                         onDelete={() => deleteFurniture(item.id)}
