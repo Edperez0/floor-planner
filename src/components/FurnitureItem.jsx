@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useCallback, useState, memo } from 'react';
-import Konva from 'konva';
 import { Group, Rect, Text, Transformer, Line } from 'react-konva';
 import { defaultFillColorForType } from '../utils/furnitureColors';
 
@@ -18,10 +17,6 @@ const BORDER_DASH = [5, 5];
 const ROT_HANDLE_CLICK_MAX_PX = 6;
 /** Degrees: if Konva changed rotation more than this, treat as drag (not click). */
 const ROT_HANDLE_CLICK_MAX_DEG = 4;
-
-/** Filled curved-arrow path (24×24-ish bounds) for the rotate control. */
-const ROTATE_HANDLE_ICON_PATH =
-  'M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z';
 
 const ROT_HANDLE_TOOLTIP = 'Drag to free rotate. Click to rotate 90°';
 
@@ -226,52 +221,6 @@ function FurnitureItemInner({
     ? {}
     : { x: Number(item.x) || 0, y: Number(item.y) || 0 };
 
-  /** White circular handle, map-style shadow, rotate icon — runs after Transformer batch attrs. */
-  const anchorStyleFunc = useCallback((anchor) => {
-    if (!anchor || typeof anchor.name !== 'function' || typeof anchor.width !== 'function') return;
-    const rawName = anchor.name();
-    const name = typeof rawName === 'string' ? rawName.split(' ')[0] : '';
-    if (name !== 'rotater') return;
-
-    const sz = anchor.width();
-    if (!(sz > 0)) return;
-    anchor.cornerRadius(sz / 2);
-    anchor.fill('#ffffff');
-    anchor.stroke('rgba(15, 23, 42, 0.08)');
-    anchor.strokeWidth(1);
-    anchor.shadowEnabled(true);
-    anchor.shadowBlur(8);
-    anchor.shadowColor('rgba(15, 23, 42, 0.14)');
-    anchor.shadowOffsetY(2);
-    anchor.shadowOffsetX(0);
-    anchor.shadowOpacity(1);
-
-    let icon = anchor.findOne('.rot-handle-icon');
-    if (!icon) {
-      icon = new Konva.Path({
-        name: 'rot-handle-icon',
-        data: ROTATE_HANDLE_ICON_PATH,
-        fill: '#475569',
-        listening: false,
-      });
-      anchor.add(icon);
-    }
-
-    icon.scale({ x: 1, y: 1 });
-    let sr = { width: 1, height: 1, x: 0, y: 0 };
-    try {
-      sr = icon.getSelfRect();
-    } catch {
-      /* avoid rare Konva rect errors breaking selection */
-    }
-    const scale = (sz * 0.45) / Math.max(sr.width, sr.height, 1);
-    icon.scale({ x: scale, y: scale });
-    icon.position({
-      x: (sz - sr.width * scale) / 2 - sr.x * scale,
-      y: (sz - sr.height * scale) / 2 - sr.y * scale,
-    });
-  }, []);
-
   return (
     <>
       <Group
@@ -412,7 +361,6 @@ function FurnitureItemInner({
           anchorStroke="rgba(15, 23, 42, 0.08)"
           anchorStrokeWidth={1}
           anchorCornerRadius={12}
-          anchorStyleFunc={anchorStyleFunc}
         />
       )}
     </>

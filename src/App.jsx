@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import { Stage, Layer, Group, Image as KonvaImage } from 'react-konva';
 import useImage from './hooks/useImage';
@@ -100,8 +100,6 @@ function App() {
   const fileInputRef = useRef(null);
   const projectFileInputRef = useRef(null);
   const canvasHostRef = useRef(null);
-  const lastCanvasObservedRef = useRef({ w: 0, h: 0 });
-  const prevSelectedIdForLogRef = useRef(null);
   const calibrationToastTimerRef = useRef(null);
 
   useEffect(() => {
@@ -146,24 +144,6 @@ function App() {
       const w = Math.floor(width);
       const h = Math.floor(height);
       if (w > 0 && h > 0) {
-        const prev = lastCanvasObservedRef.current;
-        if (prev.w !== w || prev.h !== h) {
-          lastCanvasObservedRef.current = { w, h };
-          // #region agent log
-          fetch('http://127.0.0.1:7687/ingest/2e6ba286-1170-4a08-829f-40c18e955fd4', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '548a6c' },
-            body: JSON.stringify({
-              sessionId: '548a6c',
-              location: 'App.jsx:ResizeObserver',
-              message: 'canvasHost size changed',
-              data: { prevW: prev.w, prevH: prev.h, w, h },
-              timestamp: Date.now(),
-              hypothesisId: 'D',
-            }),
-          }).catch(() => {});
-          // #endregion
-        }
         setCanvasSize({ width: w, height: h });
       }
     };
@@ -732,34 +712,6 @@ function App() {
     return false;
   }, []);
 
-  useLayoutEffect(() => {
-    if (prevSelectedIdForLogRef.current === selectedId) return;
-    const from = prevSelectedIdForLogRef.current;
-    prevSelectedIdForLogRef.current = selectedId;
-    // #region agent log
-    fetch('http://127.0.0.1:7687/ingest/2e6ba286-1170-4a08-829f-40c18e955fd4', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '548a6c' },
-      body: JSON.stringify({
-        sessionId: '548a6c',
-        location: 'App.jsx:useLayoutEffect(selection)',
-        message: 'selectedId changed',
-        data: {
-          from,
-          to: selectedId,
-          viewX,
-          viewY,
-          viewScale,
-          canvasW: canvasSize.width,
-          canvasH: canvasSize.height,
-        },
-        timestamp: Date.now(),
-        hypothesisId: 'C',
-      }),
-    }).catch(() => {});
-    // #endregion
-  }, [selectedId, viewX, viewY, viewScale, canvasSize.width, canvasSize.height]);
-
   // Deselect when tapping floor / empty canvas (not when calibrating)
   const handleStageSurfaceDown = (e) => {
     if (isCalibrating) return;
@@ -792,20 +744,6 @@ function App() {
   const handleCanvasPointerDown = (e) => {
     const onFurniture = eventTargetIsFurniture(e);
     const btn = e.evt.button;
-    // #region agent log
-    fetch('http://127.0.0.1:7687/ingest/2e6ba286-1170-4a08-829f-40c18e955fd4', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '548a6c' },
-      body: JSON.stringify({
-        sessionId: '548a6c',
-        location: 'App.jsx:handleCanvasPointerDown',
-        message: 'stage pointer down',
-        data: { onFurniture, button: btn, spacePanActive, canvasViewLocked, isCalibrating },
-        timestamp: Date.now(),
-        hypothesisId: 'B',
-      }),
-    }).catch(() => {});
-    // #endregion
     if (canvasViewLocked || isCalibrating) {
       handleStageSurfaceDown(e);
       return;
