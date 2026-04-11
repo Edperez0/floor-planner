@@ -15,6 +15,8 @@ import FurniturePanel from './components/FurniturePanel';
 import TemplatesModal from './components/TemplatesModal';
 import './App.css';
 
+const MAP_ZOOM_STEP = 1.1;
+
 function App() {
   const [floorPlanUrl, setFloorPlanUrl] = useState(null);
   const [floorPlanImage] = useImage(floorPlanUrl);
@@ -114,6 +116,24 @@ function App() {
     setViewY(0);
     setViewScale(1);
   }, []);
+
+  /** Zoom toward canvas center (same idea as Ctrl+wheel) */
+  const zoomCanvasFromCenter = useCallback(
+    (direction) => {
+      const w = canvasSize.width;
+      const h = canvasSize.height;
+      if (w <= 0 || h <= 0) return;
+      const cx = w / 2;
+      const cy = h / 2;
+      const world = stageToWorld(cx, cy, viewX, viewY, viewScale);
+      const factor = direction === 'in' ? MAP_ZOOM_STEP : 1 / MAP_ZOOM_STEP;
+      const newScale = clampScale(viewScale * factor);
+      setViewX(cx - world.x * newScale);
+      setViewY(cy - world.y * newScale);
+      setViewScale(newScale);
+    },
+    [canvasSize.width, canvasSize.height, viewX, viewY, viewScale]
+  );
 
   // Two-finger pinch / pan on the stage container (DOM pointer events)
   useEffect(() => {
@@ -731,7 +751,8 @@ function App() {
                         item={item}
                         isSelected={item.id === selectedId}
                         onSelect={() => setSelectedId(item.id)}
-                        onDelete={() => deleteFurniture(item.id)}
+                        onDeselect={() => setSelectedId(null)}
+                        onColorChange={(hex) => updateFurnitureColor(item.id, hex)}
                         onDragEnd={(e) => handleDragEnd(item.id, e)}
                         onTransformEnd={(e) => handleTransformEnd(item.id, e)}
                       />
@@ -739,6 +760,94 @@ function App() {
                   </Group>
                 </Layer>
               </Stage>
+              <div
+                className="canvas-map-controls"
+                role="toolbar"
+                aria-label="Canvas navigation"
+              >
+                <button
+                  type="button"
+                  className="canvas-map-controls__recenter"
+                  onClick={resetCanvasView}
+                  title="Recenter view"
+                  aria-label="Recenter view"
+                >
+                  <svg
+                    className="canvas-map-controls__icon"
+                    viewBox="0 0 24 24"
+                    width="22"
+                    height="22"
+                    aria-hidden
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="7"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                    />
+                    <line
+                      x1="12"
+                      y1="3"
+                      x2="12"
+                      y2="6.5"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                    />
+                    <line
+                      x1="12"
+                      y1="17.5"
+                      x2="12"
+                      y2="21"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                    />
+                    <line
+                      x1="3"
+                      y1="12"
+                      x2="6.5"
+                      y2="12"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                    />
+                    <line
+                      x1="17.5"
+                      y1="12"
+                      x2="21"
+                      y2="12"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                    />
+                    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                  </svg>
+                </button>
+                <div className="canvas-map-controls__zoom-pill">
+                  <button
+                    type="button"
+                    className="canvas-map-controls__zoom-btn"
+                    onClick={() => zoomCanvasFromCenter('in')}
+                    title="Zoom in"
+                    aria-label="Zoom in"
+                  >
+                    <span aria-hidden>+</span>
+                  </button>
+                  <div className="canvas-map-controls__zoom-divider" aria-hidden />
+                  <button
+                    type="button"
+                    className="canvas-map-controls__zoom-btn"
+                    onClick={() => zoomCanvasFromCenter('out')}
+                    title="Zoom out"
+                    aria-label="Zoom out"
+                  >
+                    <span aria-hidden>−</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <aside

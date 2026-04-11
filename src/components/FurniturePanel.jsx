@@ -20,6 +20,12 @@ const FURNITURE_PRESETS = [
   { name: 'Potted Plant', width: { feet: 1, inches: 6 }, depth: { feet: 1, inches: 6 }, color: '#66BB6A' },
 ];
 
+function normalizeHex(v) {
+  const s = String(v).trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(s)) return s;
+  return null;
+}
+
 function FurniturePanel({
   onAddFurniture,
   selectedFurniture,
@@ -38,6 +44,8 @@ function FurniturePanel({
   const [depthInches, setDepthInches] = useState('0');
   const [customFillColor, setCustomFillColor] = useState('#8B7355');
   const [selectedFillColor, setSelectedFillColor] = useState('#8B7355');
+  const [selectedHexText, setSelectedHexText] = useState('#8B7355');
+  const [presetColors, setPresetColors] = useState(() => FURNITURE_PRESETS.map((p) => p.color));
 
   useEffect(() => {
     if (selectedFurniture) {
@@ -46,24 +54,36 @@ function FurniturePanel({
       setWidthInches(String(selectedFurniture.realWidth.inches));
       setDepthFeet(String(selectedFurniture.realDepth.feet));
       setDepthInches(String(selectedFurniture.realDepth.inches));
-      setSelectedFillColor(
-        selectedFurniture.fillColor ?? defaultFillColorForType(selectedFurniture.type)
-      );
+      const hex =
+        selectedFurniture.fillColor ?? defaultFillColorForType(selectedFurniture.type);
+      setSelectedFillColor(hex);
+      setSelectedHexText(hex);
     }
   }, [selectedFurniture]);
 
-  const handleAddPreset = (preset) => {
+  const setPresetColorAt = (index, hex) => {
+    const n = normalizeHex(hex);
+    if (!n) return;
+    setPresetColors((prev) => {
+      const next = [...prev];
+      next[index] = n;
+      return next;
+    });
+  };
+
+  const handleAddPreset = (preset, index) => {
     if (!isCalibrated) {
       alert('Please calibrate the floor plan first!');
       return;
     }
+    const color = presetColors[index] ?? preset.color;
     onAddFurniture(
       preset.name,
       preset.width.feet,
       preset.width.inches,
       preset.depth.feet,
       preset.depth.inches,
-      preset.color
+      color
     );
   };
 
@@ -99,9 +119,29 @@ function FurniturePanel({
   };
 
   const handleSelectedColorChange = (hex) => {
-    setSelectedFillColor(hex);
+    const n = normalizeHex(hex);
+    if (!n) return;
+    setSelectedFillColor(n);
+    setSelectedHexText(n);
     if (selectedFurniture) {
-      onUpdateFurnitureColor(selectedFurniture.id, hex);
+      onUpdateFurnitureColor(selectedFurniture.id, n);
+    }
+  };
+
+  const handleHexFieldChange = (raw) => {
+    setSelectedHexText(raw);
+    if (raw.length === 7) {
+      const n = normalizeHex(raw);
+      if (n) handleSelectedColorChange(n);
+    }
+  };
+
+  const handleHexFieldBlur = () => {
+    const n = normalizeHex(selectedHexText);
+    if (n) {
+      handleSelectedColorChange(n);
+    } else {
+      setSelectedHexText(selectedFillColor);
     }
   };
 
@@ -114,27 +154,37 @@ function FurniturePanel({
           <p className="warning">⚠️ Calibrate scale first</p>
         )}
         <div className="presets-scroll" aria-label="Furniture preset list">
-          <div className="presets-grid">
+          <ul className="preset-list">
             {FURNITURE_PRESETS.map((preset, index) => (
-              <button
-                key={index}
-                type="button"
-                className="preset-btn"
-                onClick={() => handleAddPreset(preset)}
-                disabled={!isCalibrated}
-              >
-                <span
-                  className="preset-swatch"
-                  style={{ backgroundColor: preset.color }}
-                  aria-hidden
-                />
-                {preset.name}
-                <span className="preset-size">
-                  {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
-                </span>
-              </button>
+              <li key={preset.name + index} className="preset-row">
+                <label className="preset-swatch-label" title={`Color for ${preset.name}`}>
+                  <input
+                    type="color"
+                    className="preset-color-input"
+                    value={presetColors[index]}
+                    onChange={(e) => setPresetColorAt(index, e.target.value)}
+                    aria-label={`Choose default color for ${preset.name}`}
+                  />
+                  <span
+                    className="preset-swatch-disk"
+                    style={{ backgroundColor: presetColors[index] }}
+                    aria-hidden
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="preset-place-btn"
+                  onClick={() => handleAddPreset(preset, index)}
+                  disabled={!isCalibrated}
+                >
+                  <span className="preset-name">{preset.name}</span>
+                  <span className="preset-dims">
+                    {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
+                  </span>
+                </button>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </div>
 
@@ -232,14 +282,30 @@ function FurniturePanel({
       {selectedFurniture && (
         <div className="panel-section selected-section">
           <h3>Selected: {selectedFurniture.type}</h3>
-          <div className="color-row color-row--selected">
-            <label htmlFor="selected-fill-color">Color</label>
+          <div className="selected-color-field">
+            <label className="selected-swatch-wrap" title="Item color">
+              <input
+                id="selected-fill-color"
+                type="color"
+                className="selected-color-native"
+                value={selectedFillColor}
+                onChange={(e) => handleSelectedColorChange(e.target.value)}
+              />
+              <span
+                className="selected-color-swatch"
+                style={{ backgroundColor: selectedFillColor }}
+                aria-hidden
+              />
+            </label>
             <input
-              id="selected-fill-color"
-              type="color"
-              value={selectedFillColor}
-              onChange={(e) => handleSelectedColorChange(e.target.value)}
-              title="Item color"
+              type="text"
+              className="selected-hex-input"
+              value={selectedHexText}
+              onChange={(e) => handleHexFieldChange(e.target.value)}
+              onBlur={handleHexFieldBlur}
+              spellCheck={false}
+              maxLength={7}
+              aria-label="Hex color"
             />
           </div>
           <div className="dimension-row">

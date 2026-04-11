@@ -53,6 +53,97 @@
   border-radius: 0;
 }
 
+/* Map-style floating controls (bottom-right of canvas) */
+.canvas-map-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.canvas-map-controls > * {
+  pointer-events: auto;
+}
+
+.canvas-map-controls__recenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 10px;
+  background: #fff;
+  color: #374151;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.06);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.canvas-map-controls__recenter:hover {
+  background: #f8fafc;
+  color: #111827;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14), 0 2px 4px rgba(15, 23, 42, 0.06);
+}
+
+.canvas-map-controls__recenter:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.canvas-map-controls__zoom-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 40px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12), 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.canvas-map-controls__zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0;
+  border: none;
+  background: #fff;
+  color: #374151;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.canvas-map-controls__zoom-btn:hover {
+  background: #f8fafc;
+  color: #111827;
+}
+
+.canvas-map-controls__zoom-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+  position: relative;
+  z-index: 1;
+}
+
+.canvas-map-controls__zoom-divider {
+  height: 1px;
+  margin: 0;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
 .sidebar-column {
   min-width: 0;
   max-width: 330px;
