@@ -275,7 +275,7 @@ function FurniturePanel({
           <span className="canvas-lock-label">{canvasViewLocked ? 'Locked' : 'Unlocked'}</span>
         </button>
         <p className="canvas-controls-hint">
-          When unlocked: right-click drag pans; Ctrl+scroll (⌘+scroll on Mac) zooms. On touch: two fingers to pan and pinch.
+          When unlocked: double-click the floor plan for Pan mode, then drag with the left button. Ctrl+scroll (⌘+scroll on Mac) zooms. On touch: two fingers to pan and pinch.
         </p>
       </div>
 

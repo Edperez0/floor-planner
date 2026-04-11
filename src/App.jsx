@@ -43,10 +43,11 @@ function App() {
   const [viewY, setViewY] = useState(0);
   const [viewScale, setViewScale] = useState(1);
   const [canvasViewLocked, setCanvasViewLocked] = useState(false);
-  const [isRightPanning, setIsRightPanning] = useState(false);
+  const [panMode, setPanMode] = useState(false);
+  const [isPanDragging, setIsPanDragging] = useState(false);
   const stageRef = useRef(null);
   const worldGroupRef = useRef(null);
-  const rightPanRef = useRef(null);
+  const panDragRef = useRef(null);
   const canvasViewLockedRef = useRef(false);
   const viewRef = useRef({ viewX: 0, viewY: 0, viewScale: 1 });
   const fileInputRef = useRef(null);
@@ -110,6 +111,24 @@ function App() {
   useEffect(() => {
     viewRef.current = { viewX, viewY, viewScale };
   }, [viewX, viewY, viewScale]);
+
+  useEffect(() => {
+    if (!panMode) return;
+    setSelectedId(null);
+  }, [panMode]);
+
+  useEffect(() => {
+    if (isPanDragging) {
+      document.body.style.cursor = 'grabbing';
+    } else if (panMode) {
+      document.body.style.cursor = 'grab';
+    } else {
+      document.body.style.cursor = '';
+    }
+    return () => {
+      document.body.style.cursor = '';
+    };
+  }, [panMode, isPanDragging]);
 
   const resetCanvasView = useCallback(() => {
     setViewX(0);
@@ -264,6 +283,7 @@ function App() {
 
   // Start calibration mode
   const startCalibration = () => {
+    setPanMode(false);
     setIsCalibrating(true);
     setCalibrationLine(null);
   };
@@ -528,6 +548,28 @@ function App() {
     );
   };
 
+  /** True if double-click hit furniture or its selection chrome (not background). */
+  const hitIsFurnitureOrChrome = useCallback((target) => {
+    let node = target;
+    while (node) {
+      const name = typeof node.name === 'function' ? node.name() : '';
+      if (name === 'furniture' || name === 'furniture-selection-toolbar') return true;
+      const cls = node.getClassName?.();
+      if (cls === 'Transformer') return true;
+      node = node.getParent?.();
+    }
+    return false;
+  }, []);
+
+  const handlePanModeDblClick = useCallback(
+    (e) => {
+      if (isCalibrating) return;
+      if (hitIsFurnitureOrChrome(e.target)) return;
+      setPanMode((p) => !p);
+    },
+    [isCalibrating, hitIsFurnitureOrChrome]
+  );
+
   // Deselect when tapping floor / empty canvas (not when calibrating)
   const handleStageSurfaceDown = (e) => {
     if (isCalibrating) return;
@@ -544,14 +586,14 @@ function App() {
   };
 
   const handleCanvasPointerDown = (e) => {
-    if (!canvasViewLocked && e.evt.button === 2) {
+    if (panMode && !canvasViewLocked && e.evt.button === 0) {
       e.evt.preventDefault();
-      rightPanRef.current = {
+      panDragRef.current = {
         pointerId: e.evt.pointerId,
         lastX: e.evt.clientX,
         lastY: e.evt.clientY,
       };
-      setIsRightPanning(true);
+      setIsPanDragging(true);
       try {
         stageRef.current?.container().setPointerCapture(e.evt.pointerId);
       } catch (_) {}
@@ -561,8 +603,8 @@ function App() {
   };
 
   const handleCanvasPointerMove = (e) => {
-    if (!canvasViewLocked && rightPanRef.current && rightPanRef.current.pointerId === e.evt.pointerId) {
-      const pr = rightPanRef.current;
+    if (panDragRef.current && panDragRef.current.pointerId === e.evt.pointerId) {
+      const pr = panDragRef.current;
       const dx = e.evt.clientX - pr.lastX;
       const dy = e.evt.clientY - pr.lastY;
       pr.lastX = e.evt.clientX;
@@ -575,9 +617,9 @@ function App() {
   };
 
   const handleCanvasPointerUp = (e) => {
-    if (rightPanRef.current?.pointerId === e.evt.pointerId) {
-      rightPanRef.current = null;
-      setIsRightPanning(false);
+    if (panDragRef.current?.pointerId === e.evt.pointerId) {
+      panDragRef.current = null;
+      setIsPanDragging(false);
       try {
         stageRef.current?.container().releasePointerCapture(e.evt.pointerId);
       } catch (_) {}
@@ -620,6 +662,19 @@ function App() {
         if (el.isContentEditable) return;
       }
 
+      if (ev.key === 'Escape' && panMode) {
+        ev.preventDefault();
+        setPanMode(false);
+        if (panDragRef.current) {
+          try {
+            stageRef.current?.container().releasePointerCapture(panDragRef.current.pointerId);
+          } catch (_) {}
+          panDragRef.current = null;
+          setIsPanDragging(false);
+        }
+        return;
+      }
+
       const meta = ev.metaKey || ev.ctrlKey;
       if (meta && ev.key.toLowerCase() === 'z') {
         ev.preventDefault();
@@ -638,7 +693,7 @@ function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, deleteFurniture, undo, redo]);
+  }, [selectedId, deleteFurniture, undo, redo, panMode]);
 
   const selectedFurniture = furniture.find(f => f.id === selectedId);
 
@@ -691,13 +746,18 @@ function App() {
 
         <div className="app-main">
           <div className="canvas-column">
-            <div ref={canvasHostRef} className="canvas-host">
+            <div
+              ref={canvasHostRef}
+              className={`canvas-host${panMode ? ' canvas-host--pan-mode' : ''}`}
+            >
               <Stage
                 ref={stageRef}
                 width={canvasSize.width}
                 height={canvasSize.height}
                 onClick={handleStageClick}
                 onTap={handleStageClick}
+                onDblClick={handlePanModeDblClick}
+                onDblTap={handlePanModeDblClick}
                 onWheel={handleCanvasWheel}
                 onContextMenu={(e) => e.evt.preventDefault()}
                 {...(typeof PointerEvent !== 'undefined'
@@ -716,7 +776,13 @@ function App() {
                       onTouchEnd: handleCanvasPointerUp,
                     })}
                 style={{
-                  cursor: isRightPanning ? 'grabbing' : isCalibrating ? 'crosshair' : 'default',
+                  cursor: isCalibrating
+                    ? 'crosshair'
+                    : isPanDragging
+                      ? 'grabbing'
+                      : panMode
+                        ? 'grab'
+                        : 'default',
                   touchAction: 'none',
                   userSelect: 'none',
                   WebkitUserSelect: 'none',
@@ -750,6 +816,7 @@ function App() {
                         key={item.id}
                         item={item}
                         isSelected={item.id === selectedId}
+                        panMode={panMode}
                         onSelect={() => setSelectedId(item.id)}
                         onDeselect={() => setSelectedId(null)}
                         onColorChange={(hex) => updateFurnitureColor(item.id, hex)}
@@ -760,6 +827,11 @@ function App() {
                   </Group>
                 </Layer>
               </Stage>
+              {panMode && (
+                <div className="canvas-pan-mode-toast" role="status">
+                  Pan mode on — drag to move the view. Double-click the floor or press Esc to exit.
+                </div>
+              )}
               <div
                 className="canvas-map-controls"
                 role="toolbar"
@@ -887,7 +959,9 @@ function App() {
           <div className="upload-prompt">
             <h2>Upload a Floor Plan to Get Started</h2>
             <p>Drag and drop an image here or click the button below</p>
-            <p className="upload-hint">Right-click to Pan, Ctrl+Scroll to Zoom.</p>
+            <p className="upload-hint">
+              Double-click the floor plan to turn Pan mode on (then drag to move). Ctrl+scroll to zoom.
+            </p>
             <button type="button" onClick={() => fileInputRef.current?.click()} className="upload-btn">
               Choose Floor Plan Image
             </button>

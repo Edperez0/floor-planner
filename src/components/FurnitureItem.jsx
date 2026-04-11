@@ -11,6 +11,7 @@ const CORNER_STROKE = 1.5;
 function FurnitureItem({
   item,
   isSelected,
+  panMode = false,
   onSelect,
   onDeselect,
   onColorChange,
@@ -76,6 +77,8 @@ function FurnitureItem({
   const toolbarX = w / 2 - toolbarTotalW / 2;
   const toolbarY = -TOOLBAR_Y;
 
+  const interactive = !panMode;
+
   return (
     <>
       <Group
@@ -86,7 +89,8 @@ function FurnitureItem({
         rotation={item.rotation}
         offsetX={w / 2}
         offsetY={h / 2}
-        draggable
+        listening={interactive}
+        draggable={interactive}
         onClick={onSelect}
         onTap={onSelect}
         onDragEnd={onDragEnd}
@@ -156,6 +160,7 @@ function FurnitureItem({
       {isSelected && (
         <Transformer
           ref={trRef}
+          listening={interactive}
           rotateEnabled
           rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
           enabledAnchors={[]}
@@ -170,6 +175,7 @@ function FurnitureItem({
       {isSelected && (
         <Group
           name="furniture-selection-toolbar"
+          listening={interactive}
           x={item.x}
           y={item.y}
           rotation={item.rotation}
