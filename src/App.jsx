@@ -812,7 +812,7 @@ function App() {
                         isSelected={item.id === selectedId}
                         panMode={panMode}
                         onSelect={() => setSelectedId(item.id)}
-                        onDeselect={() => setSelectedId(null)}
+                        onDelete={() => deleteFurniture(item.id)}
                         onDragEnd={handleFurnitureDragEnd}
                         onTransformEnd={handleFurnitureTransformEnd}
                       />
