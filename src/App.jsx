@@ -46,6 +46,7 @@ function App() {
   const [canvasViewLocked, setCanvasViewLocked] = useState(false);
   const [panMode, setPanMode] = useState(false);
   const [isPanDragging, setIsPanDragging] = useState(false);
+  const [customPresets, setCustomPresets] = useState([]);
   const stageRef = useRef(null);
   const worldGroupRef = useRef(null);
   const panDragRef = useRef(null);
@@ -412,6 +413,42 @@ function App() {
     [commitFurniture]
   );
 
+  const addCustomPreset = useCallback((entry) => {
+    const id =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : String(Date.now());
+    const hex =
+      typeof entry.color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(String(entry.color).trim())
+        ? String(entry.color).trim()
+        : '#8B7355';
+    setCustomPresets((prev) => [
+      ...prev,
+      {
+        id,
+        name: String(entry.name ?? '').trim() || 'Custom',
+        width: { ...entry.width },
+        depth: { ...entry.depth },
+        color: hex,
+      },
+    ]);
+  }, []);
+
+  const deleteCustomPreset = useCallback((id) => {
+    setCustomPresets((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const updateCustomPresetColor = useCallback((id, fillColor) => {
+    const hex =
+      typeof fillColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(fillColor.trim())
+        ? fillColor.trim()
+        : null;
+    if (!hex) return;
+    setCustomPresets((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, color: hex } : p))
+    );
+  }, []);
+
   const hasCanvasContent = !!floorPlanUrl || furniture.length > 0;
 
   const confirmClearCanvas = useCallback(() => {
@@ -465,6 +502,7 @@ function App() {
 
       setPixelsPerInch(data.pixelsPerInch);
       loadSnapshot(data.furniture);
+      setCustomPresets(Array.isArray(data.customPresets) ? data.customPresets : []);
       resetCanvasView();
     },
     [loadSnapshot, resetCanvasView]
@@ -483,7 +521,7 @@ function App() {
   );
 
   const handleSaveProject = useCallback(() => {
-    const json = serializeProject(floorPlanUrl, pixelsPerInch, furniture);
+    const json = serializeProject(floorPlanUrl, pixelsPerInch, furniture, customPresets);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -494,7 +532,7 @@ function App() {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
-  }, [floorPlanUrl, pixelsPerInch, furniture]);
+  }, [floorPlanUrl, pixelsPerInch, furniture, customPresets]);
 
   const handleLoadProjectClick = useCallback(() => {
     projectFileInputRef.current?.click();
@@ -1000,6 +1038,10 @@ function App() {
           <aside className="sidebar-column">
             <FurniturePanel
               onAddFurniture={addFurniture}
+              customPresets={customPresets}
+              onSaveCustomPreset={addCustomPreset}
+              onDeleteCustomPreset={deleteCustomPreset}
+              onUpdateCustomPresetColor={updateCustomPresetColor}
               selectedFurniture={selectedFurniture}
               onUpdateFurniture={updateFurniture}
               onUpdateFurnitureColor={updateFurnitureColor}

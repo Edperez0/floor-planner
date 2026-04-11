@@ -28,6 +28,10 @@ function normalizeHex(v) {
 
 function FurniturePanel({
   onAddFurniture,
+  customPresets = [],
+  onSaveCustomPreset,
+  onDeleteCustomPreset,
+  onUpdateCustomPresetColor,
   selectedFurniture,
   onUpdateFurniture,
   onUpdateFurnitureColor,
@@ -94,7 +98,13 @@ function FurniturePanel({
     const wi = parseWholeInches(widthInches);
     const df = parseWholeFeet(depthFeet);
     const di = parseWholeInches(depthInches);
-    onAddFurniture(furnitureName, wf, wi, df, di, customFillColor);
+    const hex = normalizeHex(customFillColor) ?? '#8B7355';
+    onSaveCustomPreset({
+      name: furnitureName.trim(),
+      width: { feet: wf, inches: wi },
+      depth: { feet: df, inches: di },
+      color: hex,
+    });
     setShowAddForm(false);
     setFurnitureName('');
     setWidthFeet('0');
@@ -102,6 +112,26 @@ function FurniturePanel({
     setDepthFeet('0');
     setDepthInches('0');
     setCustomFillColor('#8B7355');
+  };
+
+  const handleAddCustomPresetRow = (preset) => {
+    if (!isCalibrated) {
+      alert('Please calibrate the floor plan first!');
+      return;
+    }
+    onAddFurniture(
+      preset.name,
+      preset.width.feet,
+      preset.width.inches,
+      preset.depth.feet,
+      preset.depth.inches,
+      preset.color
+    );
+  };
+
+  const handleDeleteCustomPresetClick = (e, id) => {
+    e.stopPropagation();
+    onDeleteCustomPreset(id);
   };
 
   const handleUpdate = () => {
@@ -186,6 +216,61 @@ function FurniturePanel({
         </div>
       </div>
 
+      <div className="panel-section panel-section--presets">
+        <h3>Custom Furniture</h3>
+        {!isCalibrated && (
+          <p className="warning">⚠️ Calibrate scale first</p>
+        )}
+        <div className="presets-scroll" aria-label="Custom furniture preset list">
+          {customPresets.length === 0 ? (
+            <p className="custom-presets-empty">
+              No custom items yet — use + Add Custom below.
+            </p>
+          ) : (
+            <ul className="preset-list">
+              {customPresets.map((preset) => (
+                <li key={preset.id} className="preset-row">
+                  <label className="preset-swatch-label" title={`Color for ${preset.name}`}>
+                    <input
+                      type="color"
+                      className="preset-color-input"
+                      value={preset.color}
+                      onChange={(e) => onUpdateCustomPresetColor(preset.id, e.target.value)}
+                      aria-label={`Choose default color for ${preset.name}`}
+                    />
+                    <span
+                      className="preset-swatch-disk"
+                      style={{ backgroundColor: preset.color }}
+                      aria-hidden
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="preset-place-btn"
+                    onClick={() => handleAddCustomPresetRow(preset)}
+                    disabled={!isCalibrated}
+                  >
+                    <span className="preset-name">{preset.name}</span>
+                    <span className="preset-dims">
+                      {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="custom-preset-delete"
+                    onClick={(e) => handleDeleteCustomPresetClick(e, preset.id)}
+                    aria-label={`Remove custom preset ${preset.name}`}
+                    title="Remove from list"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
       <div className="panel-section">
         <button
           type="button"
@@ -251,7 +336,7 @@ function FurniturePanel({
               />
             </div>
             <button type="button" className="add-btn" onClick={handleAddCustom}>
-              Add to Canvas
+              Save to Custom Furniture
             </button>
           </div>
         )}
