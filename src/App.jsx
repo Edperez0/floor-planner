@@ -76,7 +76,8 @@ function App() {
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [calibrationLine, setCalibrationLine] = useState(null);
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
-  const [calibrationSuccessPpi, setCalibrationSuccessPpi] = useState(null);
+  /** Transient success message shown over the canvas after calibration. */
+  const [calibrationToast, setCalibrationToast] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
@@ -99,6 +100,7 @@ function App() {
   const fileInputRef = useRef(null);
   const projectFileInputRef = useRef(null);
   const canvasHostRef = useRef(null);
+  const calibrationToastTimerRef = useRef(null);
 
   useEffect(() => {
     if (pixelsPerInch == null) {
@@ -115,6 +117,23 @@ function App() {
       /* ignore quota errors */
     }
   }, [customPresets]);
+
+  useEffect(() => {
+    return () => {
+      if (calibrationToastTimerRef.current != null) {
+        clearTimeout(calibrationToastTimerRef.current);
+        calibrationToastTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const clearCalibrationToast = useCallback(() => {
+    if (calibrationToastTimerRef.current != null) {
+      clearTimeout(calibrationToastTimerRef.current);
+      calibrationToastTimerRef.current = null;
+    }
+    setCalibrationToast(null);
+  }, []);
 
   // Konva Stage size follows the canvas host (excludes sidebar and bottom leaderboard slot)
   useEffect(() => {
@@ -429,7 +448,16 @@ function App() {
     setPixelsPerInch(ppi);
     setIsCalibrating(false);
     setCalibrationLine(null);
-    setCalibrationSuccessPpi(ppi);
+    setShowCalibrationModal(false);
+    if (calibrationToastTimerRef.current != null) {
+      clearTimeout(calibrationToastTimerRef.current);
+      calibrationToastTimerRef.current = null;
+    }
+    setCalibrationToast(`Calibration set! ${ppi.toFixed(2)} pixels per inch`);
+    calibrationToastTimerRef.current = window.setTimeout(() => {
+      calibrationToastTimerRef.current = null;
+      setCalibrationToast(null);
+    }, 3000);
   };
 
   // Add furniture item
@@ -535,11 +563,6 @@ function App() {
 
   const hasCanvasContent = !!floorPlanUrl || furniture.length > 0;
 
-  const handleCalibrationSuccessDismiss = useCallback(() => {
-    setCalibrationSuccessPpi(null);
-    setShowCalibrationModal(false);
-  }, []);
-
   const confirmClearCanvas = useCallback(() => {
     localStorage.removeItem(LS_FLOOR_PLAN);
     localStorage.removeItem(LS_PIXELS_PER_INCH);
@@ -551,11 +574,11 @@ function App() {
     setCustomPresets([]);
     setIsCalibrating(false);
     setCalibrationLine(null);
-    setCalibrationSuccessPpi(null);
+    clearCalibrationToast();
     setShowCalibrationModal(false);
     setShowClearConfirm(false);
     resetCanvasView();
-  }, [resetFurnitureUndo, resetCanvasView]);
+  }, [resetFurnitureUndo, resetCanvasView, clearCalibrationToast]);
 
   const handleExportPlan = useCallback(() => {
     const stage = stageRef.current;
@@ -583,7 +606,7 @@ function App() {
       setShowTemplatesModal(false);
       setIsCalibrating(false);
       setCalibrationLine(null);
-      setCalibrationSuccessPpi(null);
+      clearCalibrationToast();
       setSelectedId(null);
 
       if (data.floorPlanImage) {
@@ -599,7 +622,7 @@ function App() {
       setCustomPresets(Array.isArray(data.customPresets) ? data.customPresets : []);
       resetCanvasView();
     },
-    [loadSnapshot, resetCanvasView]
+    [loadSnapshot, resetCanvasView, clearCalibrationToast]
   );
 
   const handleSelectTemplate = useCallback(
@@ -930,6 +953,20 @@ function App() {
                   </Group>
                 </Layer>
               </Stage>
+              {calibrationToast && (
+                <div
+                  className="calibration-toast"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="calibration-toast__icon" aria-hidden>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </span>
+                  <span>{calibrationToast}</span>
+                </div>
+              )}
               {(spacePanActive || isPanDragging) && (
                 <div className="canvas-pan-mode-toast" role="status">
                   Pan — drag to move the view.
@@ -1148,11 +1185,9 @@ function App() {
 
       {showCalibrationModal && (
         <CalibrationModal
-          successPpi={calibrationSuccessPpi}
-          onSuccessDismiss={handleCalibrationSuccessDismiss}
           onSubmit={handleCalibrationSubmit}
           onCancel={() => {
-            setCalibrationSuccessPpi(null);
+            clearCalibrationToast();
             setShowCalibrationModal(false);
             setCalibrationLine(null);
             setIsCalibrating(false);
