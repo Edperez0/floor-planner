@@ -163,11 +163,13 @@ function FurniturePanel({
   return (
     <div className="furniture-panel">
       <div className="furniture-panel__main">
+        {!isCalibrated && (
+          <div className="panel-section panel-section--calibration-warning">
+            <p className="warning">⚠️ Calibrate scale first</p>
+          </div>
+        )}
       <div className="panel-section panel-section--presets">
         <h3>Furniture Presets</h3>
-        {!isCalibrated && (
-          <p className="warning">⚠️ Calibrate scale first</p>
-        )}
         <div className="presets-scroll" aria-label="Furniture preset list">
           <ul className="preset-list">
             {FURNITURE_PRESETS.map((preset, index) => (
@@ -197,9 +199,6 @@ function FurniturePanel({
 
       <div className="panel-section panel-section--presets">
         <h3>Custom Furniture</h3>
-        {!isCalibrated && (
-          <p className="warning">⚠️ Calibrate scale first</p>
-        )}
         <div className="presets-scroll" aria-label="Custom furniture preset list">
           {customPresets.length === 0 ? (
             <p className="custom-presets-empty">

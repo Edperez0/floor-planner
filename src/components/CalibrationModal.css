@@ -103,3 +103,15 @@
 .hint strong {
   color: #2c3e50;
 }
+
+.calibration-success {
+  margin: 8px 0 0;
+  padding: 14px 16px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  color: #065f46;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}

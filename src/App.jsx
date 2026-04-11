@@ -4,7 +4,7 @@ import { Stage, Layer, Group, Image as KonvaImage } from 'react-konva';
 import useImage from './hooks/useImage';
 import { useFurnitureUndoRedo } from './hooks/useFurnitureUndoRedo';
 import { sortFurnitureForCanvas } from './utils/furnitureRenderOrder';
-import { serializeProject, parseProjectFile } from './utils/projectFile';
+import { serializeProject, parseProjectFile, normalizeCustomPreset } from './utils/projectFile';
 import { defaultFillColorForType } from './utils/furnitureColors';
 import { clampScale, stageToWorld } from './utils/canvasViewMath';
 import Toolbar from './components/Toolbar';
@@ -18,8 +18,48 @@ import './App.css';
 
 const MAP_ZOOM_STEP = 1.1;
 
+const LS_FLOOR_PLAN = 'floorPlanImage';
+const LS_PIXELS_PER_INCH = 'pixelsPerInch';
+const LS_CUSTOM_PRESETS = 'customPresets';
+
+function readStoredFloorPlanUrl() {
+  if (typeof localStorage === 'undefined') return null;
+  const v = localStorage.getItem(LS_FLOOR_PLAN);
+  return v && v.length > 0 ? v : null;
+}
+
+function readStoredPpi() {
+  if (typeof localStorage === 'undefined') return null;
+  const raw = localStorage.getItem(LS_PIXELS_PER_INCH);
+  if (raw == null || raw === '') return null;
+  const n = parseFloat(raw);
+  if (Number.isNaN(n) || n <= 0) return null;
+  return n;
+}
+
+function readStoredCustomPresets() {
+  if (typeof localStorage === 'undefined') return [];
+  const raw = localStorage.getItem(LS_CUSTOM_PRESETS);
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    const out = [];
+    arr.forEach((item, i) => {
+      try {
+        out.push(normalizeCustomPreset(item, i));
+      } catch {
+        /* skip invalid row */
+      }
+    });
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 function App() {
-  const [floorPlanUrl, setFloorPlanUrl] = useState(null);
+  const [floorPlanUrl, setFloorPlanUrl] = useState(readStoredFloorPlanUrl);
   const [floorPlanImage] = useImage(floorPlanUrl);
   const {
     furniture,
@@ -32,10 +72,11 @@ function App() {
     loadSnapshot,
   } = useFurnitureUndoRedo();
   const [selectedId, setSelectedId] = useState(null);
-  const [pixelsPerInch, setPixelsPerInch] = useState(null); // Core calibration value
+  const [pixelsPerInch, setPixelsPerInch] = useState(readStoredPpi); // Core calibration value
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [calibrationLine, setCalibrationLine] = useState(null);
   const [showCalibrationModal, setShowCalibrationModal] = useState(false);
+  const [calibrationSuccessPpi, setCalibrationSuccessPpi] = useState(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
@@ -46,7 +87,7 @@ function App() {
   const [canvasViewLocked, setCanvasViewLocked] = useState(false);
   const [panMode, setPanMode] = useState(false);
   const [isPanDragging, setIsPanDragging] = useState(false);
-  const [customPresets, setCustomPresets] = useState([]);
+  const [customPresets, setCustomPresets] = useState(readStoredCustomPresets);
   const stageRef = useRef(null);
   const worldGroupRef = useRef(null);
   const panDragRef = useRef(null);
@@ -56,13 +97,21 @@ function App() {
   const projectFileInputRef = useRef(null);
   const canvasHostRef = useRef(null);
 
-  // Load floor plan from localStorage on mount
   useEffect(() => {
-    const savedFloorPlan = localStorage.getItem('floorPlanImage');
-    if (savedFloorPlan) {
-      setFloorPlanUrl(savedFloorPlan);
+    if (pixelsPerInch == null) {
+      localStorage.removeItem(LS_PIXELS_PER_INCH);
+    } else {
+      localStorage.setItem(LS_PIXELS_PER_INCH, String(pixelsPerInch));
     }
-  }, []);
+  }, [pixelsPerInch]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_CUSTOM_PRESETS, JSON.stringify(customPresets));
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [customPresets]);
 
   // Konva Stage size follows the canvas host (excludes sidebar and bottom leaderboard slot)
   useEffect(() => {
@@ -248,7 +297,7 @@ function App() {
     reader.onload = (e) => {
       const dataUrl = e.target.result;
       setFloorPlanUrl(dataUrl);
-      localStorage.setItem('floorPlanImage', dataUrl);
+      localStorage.setItem(LS_FLOOR_PLAN, dataUrl);
       resetCanvasView();
     };
     reader.readAsDataURL(file);
@@ -333,8 +382,7 @@ function App() {
     setPixelsPerInch(ppi);
     setIsCalibrating(false);
     setCalibrationLine(null);
-    setShowCalibrationModal(false);
-    alert(`Calibration set! ${ppi.toFixed(2)} pixels per inch`);
+    setCalibrationSuccessPpi(ppi);
   };
 
   // Add furniture item
@@ -440,14 +488,23 @@ function App() {
 
   const hasCanvasContent = !!floorPlanUrl || furniture.length > 0;
 
+  const handleCalibrationSuccessDismiss = useCallback(() => {
+    setCalibrationSuccessPpi(null);
+    setShowCalibrationModal(false);
+  }, []);
+
   const confirmClearCanvas = useCallback(() => {
-    localStorage.removeItem('floorPlanImage');
+    localStorage.removeItem(LS_FLOOR_PLAN);
+    localStorage.removeItem(LS_PIXELS_PER_INCH);
+    localStorage.removeItem(LS_CUSTOM_PRESETS);
     setFloorPlanUrl(null);
     resetFurnitureUndo();
     setSelectedId(null);
     setPixelsPerInch(null);
+    setCustomPresets([]);
     setIsCalibrating(false);
     setCalibrationLine(null);
+    setCalibrationSuccessPpi(null);
     setShowCalibrationModal(false);
     setShowClearConfirm(false);
     resetCanvasView();
@@ -479,14 +536,15 @@ function App() {
       setShowTemplatesModal(false);
       setIsCalibrating(false);
       setCalibrationLine(null);
+      setCalibrationSuccessPpi(null);
       setSelectedId(null);
 
       if (data.floorPlanImage) {
         setFloorPlanUrl(data.floorPlanImage);
-        localStorage.setItem('floorPlanImage', data.floorPlanImage);
+        localStorage.setItem(LS_FLOOR_PLAN, data.floorPlanImage);
       } else {
         setFloorPlanUrl(null);
-        localStorage.removeItem('floorPlanImage');
+        localStorage.removeItem(LS_FLOOR_PLAN);
       }
 
       setPixelsPerInch(data.pixelsPerInch);
@@ -1052,8 +1110,11 @@ function App() {
 
       {showCalibrationModal && (
         <CalibrationModal
+          successPpi={calibrationSuccessPpi}
+          onSuccessDismiss={handleCalibrationSuccessDismiss}
           onSubmit={handleCalibrationSubmit}
           onCancel={() => {
+            setCalibrationSuccessPpi(null);
             setShowCalibrationModal(false);
             setCalibrationLine(null);
             setIsCalibrating(false);
