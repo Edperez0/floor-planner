@@ -149,6 +149,14 @@ function FurnitureItemInner({
     e.cancelBubble = true;
   };
 
+  /** Prevent Stage pointer handlers (pan/surface) from seeing this event. */
+  const stopPointerFromReachingStage = useCallback((e) => {
+    e.cancelBubble = true;
+    if (e.evt && typeof e.evt.stopPropagation === 'function') {
+      e.evt.stopPropagation();
+    }
+  }, []);
+
   const handleInsetDelete = useCallback(
     (e) => {
       e.cancelBubble = true;
@@ -282,6 +290,9 @@ function FurnitureItemInner({
         offsetY={h / 2}
         listening={interactive}
         draggable={interactive}
+        onMouseDown={stopPointerFromReachingStage}
+        onTouchStart={stopPointerFromReachingStage}
+        onPointerDown={stopPointerFromReachingStage}
         onClick={onSelect}
         onTap={onSelect}
         onDragStart={handleDragStart}
