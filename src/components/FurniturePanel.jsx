@@ -27,6 +27,8 @@ function FurniturePanel({
   onUpdateFurnitureColor,
   onDeleteFurniture,
   isCalibrated,
+  canvasViewLocked,
+  onToggleCanvasViewLock,
 }) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [furnitureName, setFurnitureName] = useState('');
@@ -205,6 +207,26 @@ function FurniturePanel({
             </button>
           </div>
         )}
+      </div>
+
+
+      <div className="panel-section canvas-controls-section">
+        <h3>Canvas Controls</h3>
+        <button
+          type="button"
+          className="canvas-lock-btn"
+          onClick={onToggleCanvasViewLock}
+          aria-pressed={canvasViewLocked}
+          title={canvasViewLocked ? 'Unlock pan and zoom' : 'Lock pan and zoom'}
+        >
+          <span className="canvas-lock-icon" aria-hidden>
+            {canvasViewLocked ? '🔒' : '🔓'}
+          </span>
+          <span className="canvas-lock-label">{canvasViewLocked ? 'Locked' : 'Unlocked'}</span>
+        </button>
+        <p className="canvas-controls-hint">
+          When unlocked: right-click drag pans; Ctrl+scroll (⌘+scroll on Mac) zooms. On touch: two fingers to pan and pinch.
+        </p>
       </div>
 
       {selectedFurniture && (

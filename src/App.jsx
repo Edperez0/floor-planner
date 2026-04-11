@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Stage, Layer, Image as KonvaImage } from 'react-konva';
+import { Stage, Layer, Group, Image as KonvaImage } from 'react-konva';
 import useImage from './hooks/useImage';
 import { useFurnitureUndoRedo } from './hooks/useFurnitureUndoRedo';
 import { sortFurnitureForCanvas } from './utils/furnitureRenderOrder';
 import { serializeProject, parseProjectFile } from './utils/projectFile';
 import { defaultFillColorForType } from './utils/furnitureColors';
+import { clampScale, stageToWorld } from './utils/canvasViewMath';
 import Toolbar from './components/Toolbar';
 import FurnitureItem from './components/FurnitureItem';
 import CalibrationLine from './components/CalibrationLine';
@@ -36,7 +37,16 @@ function App() {
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [viewX, setViewX] = useState(0);
+  const [viewY, setViewY] = useState(0);
+  const [viewScale, setViewScale] = useState(1);
+  const [canvasViewLocked, setCanvasViewLocked] = useState(false);
+  const [isRightPanning, setIsRightPanning] = useState(false);
   const stageRef = useRef(null);
+  const worldGroupRef = useRef(null);
+  const rightPanRef = useRef(null);
+  const canvasViewLockedRef = useRef(false);
+  const viewRef = useRef({ viewX: 0, viewY: 0, viewScale: 1 });
   const fileInputRef = useRef(null);
   const projectFileInputRef = useRef(null);
   const canvasHostRef = useRef(null);
@@ -91,6 +101,100 @@ function App() {
     };
   }, [canvasSize.width, canvasSize.height, floorPlanUrl]);
 
+  useEffect(() => {
+    canvasViewLockedRef.current = canvasViewLocked;
+  }, [canvasViewLocked]);
+
+  useEffect(() => {
+    viewRef.current = { viewX, viewY, viewScale };
+  }, [viewX, viewY, viewScale]);
+
+  const resetCanvasView = useCallback(() => {
+    setViewX(0);
+    setViewY(0);
+    setViewScale(1);
+  }, []);
+
+  // Two-finger pinch / pan on the stage container (DOM pointer events)
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const el = stage.container();
+    const pointers = new Map();
+
+    const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+    const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+    let gesture = null;
+
+    const fromEvent = (ev) => {
+      const rect = el.getBoundingClientRect();
+      return { x: ev.clientX - rect.left, y: ev.clientY - rect.top };
+    };
+
+    const onPointerDown = (ev) => {
+      if (canvasViewLockedRef.current) return;
+      pointers.set(ev.pointerId, fromEvent(ev));
+      if (pointers.size === 2) {
+        const pts = [...pointers.values()];
+        const d0 = dist(pts[0], pts[1]);
+        const m0 = mid(pts[0], pts[1]);
+        const vr = viewRef.current;
+        gesture = { startD: d0, startM: m0, startVX: vr.viewX, startVY: vr.viewY, startSc: vr.viewScale };
+      }
+    };
+
+    const onPointerMove = (ev) => {
+      if (canvasViewLockedRef.current) return;
+      if (!pointers.has(ev.pointerId)) return;
+      pointers.set(ev.pointerId, fromEvent(ev));
+      if (!gesture || pointers.size < 2) return;
+
+      const pts = [...pointers.values()];
+      const d = dist(pts[0], pts[1]);
+      const m = mid(pts[0], pts[1]);
+      const { startD, startM, startVX, startVY, startSc } = gesture;
+
+      const newScale = clampScale(startSc * (d / startD));
+      const world = stageToWorld(startM.x, startM.y, startVX, startVY, startSc);
+      let nx = startM.x - world.x * newScale;
+      let ny = startM.y - world.y * newScale;
+      nx += m.x - startM.x;
+      ny += m.y - startM.y;
+
+      setViewX(nx);
+      setViewY(ny);
+      setViewScale(newScale);
+      if (ev.cancelable) ev.preventDefault();
+    };
+
+    const onPointerUp = (ev) => {
+      pointers.delete(ev.pointerId);
+      if (pointers.size < 2) gesture = null;
+    };
+
+    const onWheelChrome = (ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && !canvasViewLockedRef.current && ev.cancelable) {
+        ev.preventDefault();
+      }
+    };
+
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove, { passive: false });
+    el.addEventListener('pointerup', onPointerUp);
+    el.addEventListener('pointercancel', onPointerUp);
+    el.addEventListener('wheel', onWheelChrome, { passive: false });
+
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener('pointercancel', onPointerUp);
+      el.removeEventListener('wheel', onWheelChrome);
+    };
+  }, [canvasSize.width, canvasSize.height, floorPlanUrl]);
+
+
   // Handle file upload
 
   const handleFileUpload = (file) => {
@@ -104,6 +208,7 @@ function App() {
       const dataUrl = e.target.result;
       setFloorPlanUrl(dataUrl);
       localStorage.setItem('floorPlanImage', dataUrl);
+      resetCanvasView();
     };
     reader.readAsDataURL(file);
   };
@@ -147,14 +252,12 @@ function App() {
   const handleStageClick = (e) => {
     if (!isCalibrating) return;
 
-    const stage = stageRef.current;
-    const pos = stage.getPointerPosition();
+    const pos = worldGroupRef.current?.getRelativePointerPosition();
+    if (!pos) return;
 
     if (!calibrationLine) {
-      // First click — anchor start; end follows pointer until second click
       setCalibrationLine({ start: pos, end: pos, phase: 'drawing' });
     } else if (calibrationLine.phase === 'drawing') {
-      // Second click — lock end and open length dialog
       setCalibrationLine({ ...calibrationLine, end: pos, phase: 'locked' });
       setShowCalibrationModal(true);
     }
@@ -164,8 +267,7 @@ function App() {
   const handleStagePointerMove = (e) => {
     if (!isCalibrating || !calibrationLine || calibrationLine.phase !== 'drawing') return;
 
-    const stage = stageRef.current;
-    const pos = stage.getPointerPosition();
+    const pos = worldGroupRef.current?.getRelativePointerPosition();
     if (!pos) return;
     setCalibrationLine({ ...calibrationLine, end: pos });
   };
@@ -212,11 +314,13 @@ function App() {
      * Canvas width = real width in inches × pixelsPerInch
      * Canvas height = real depth in inches × pixelsPerInch
      */
+    const cx = (canvasSize.width / 2 - viewX) / viewScale;
+    const cy = (canvasSize.height / 2 - viewY) / viewScale;
     const newItem = {
       id: Date.now().toString(),
       type,
-      x: canvasSize.width / 2,
-      y: canvasSize.height / 2,
+      x: cx,
+      y: cy,
       width: totalWidthInches * pixelsPerInch,
       height: totalDepthInches * pixelsPerInch,
       rotation: 0,
@@ -279,7 +383,8 @@ function App() {
     setCalibrationLine(null);
     setShowCalibrationModal(false);
     setShowClearConfirm(false);
-  }, [resetFurnitureUndo]);
+    resetCanvasView();
+  }, [resetFurnitureUndo, resetCanvasView]);
 
   const handleExportPlan = useCallback(() => {
     const stage = stageRef.current;
@@ -319,8 +424,9 @@ function App() {
 
       setPixelsPerInch(data.pixelsPerInch);
       loadSnapshot(data.furniture);
+      resetCanvasView();
     },
-    [loadSnapshot]
+    [loadSnapshot, resetCanvasView]
   );
 
   const handleSelectTemplate = useCallback(
@@ -415,6 +521,65 @@ function App() {
     if (cls === 'Stage' || cls === 'Layer') {
       setSelectedId(null);
     }
+  };
+
+  const handleCanvasPointerDown = (e) => {
+    if (!canvasViewLocked && e.evt.button === 2) {
+      e.evt.preventDefault();
+      rightPanRef.current = {
+        pointerId: e.evt.pointerId,
+        lastX: e.evt.clientX,
+        lastY: e.evt.clientY,
+      };
+      setIsRightPanning(true);
+      try {
+        stageRef.current?.container().setPointerCapture(e.evt.pointerId);
+      } catch (_) {}
+      return;
+    }
+    handleStageSurfaceDown(e);
+  };
+
+  const handleCanvasPointerMove = (e) => {
+    if (!canvasViewLocked && rightPanRef.current && rightPanRef.current.pointerId === e.evt.pointerId) {
+      const pr = rightPanRef.current;
+      const dx = e.evt.clientX - pr.lastX;
+      const dy = e.evt.clientY - pr.lastY;
+      pr.lastX = e.evt.clientX;
+      pr.lastY = e.evt.clientY;
+      setViewX((x) => x + dx);
+      setViewY((y) => y + dy);
+      return;
+    }
+    handleStagePointerMove(e);
+  };
+
+  const handleCanvasPointerUp = (e) => {
+    if (rightPanRef.current?.pointerId === e.evt.pointerId) {
+      rightPanRef.current = null;
+      setIsRightPanning(false);
+      try {
+        stageRef.current?.container().releasePointerCapture(e.evt.pointerId);
+      } catch (_) {}
+    }
+  };
+
+  const handleCanvasWheel = (e) => {
+    if (canvasViewLocked) return;
+    if (!e.evt.ctrlKey && !e.evt.metaKey) return;
+    e.evt.preventDefault();
+    const stage = stageRef.current;
+    if (!stage) return;
+    const pos = stage.getPointerPosition();
+    if (!pos) return;
+    const delta = e.evt.deltaY;
+    const factor = delta > 0 ? 0.92 : 1.08;
+    setViewScale((prevScale) => {
+      const newScale = clampScale(prevScale * factor);
+      setViewX((vx) => pos.x - ((pos.x - vx) / prevScale) * newScale);
+      setViewY((vy) => pos.y - ((pos.y - vy) / prevScale) * newScale);
+      return newScale;
+    });
   };
 
   // Drop selection if the selected item no longer exists (e.g. after undo)
@@ -513,50 +678,65 @@ function App() {
                 height={canvasSize.height}
                 onClick={handleStageClick}
                 onTap={handleStageClick}
+                onWheel={handleCanvasWheel}
+                onContextMenu={(e) => e.evt.preventDefault()}
                 {...(typeof PointerEvent !== 'undefined'
                   ? {
-                      onPointerDown: handleStageSurfaceDown,
-                      onPointerMove: handleStagePointerMove,
+                      onPointerDown: handleCanvasPointerDown,
+                      onPointerMove: handleCanvasPointerMove,
+                      onPointerUp: handleCanvasPointerUp,
+                      onPointerCancel: handleCanvasPointerUp,
                     }
                   : {
-                      onMouseDown: handleStageSurfaceDown,
-                      onMouseMove: handleStagePointerMove,
-                      onTouchStart: handleStageSurfaceDown,
-                      onTouchMove: handleStagePointerMove,
+                      onMouseDown: handleCanvasPointerDown,
+                      onMouseMove: handleCanvasPointerMove,
+                      onMouseUp: handleCanvasPointerUp,
+                      onTouchStart: handleCanvasPointerDown,
+                      onTouchMove: handleCanvasPointerMove,
+                      onTouchEnd: handleCanvasPointerUp,
                     })}
                 style={{
-                  cursor: isCalibrating ? 'crosshair' : 'default',
+                  cursor: isRightPanning ? 'grabbing' : isCalibrating ? 'crosshair' : 'default',
                   touchAction: 'none',
                   userSelect: 'none',
                   WebkitUserSelect: 'none',
                 }}
               >
                 <Layer>
-                  {floorPlanImage && (
-                    <KonvaImage
-                      name="floor-plan"
-                      image={floorPlanImage}
-                      x={0}
-                      y={0}
-                      listening
-                    />
-                  )}
+                  <Group
+                    ref={worldGroupRef}
+                    name="world"
+                    x={viewX}
+                    y={viewY}
+                    scaleX={viewScale}
+                    scaleY={viewScale}
+                  >
+                    {floorPlanImage && (
+                      <KonvaImage
+                        name="floor-plan"
+                        image={floorPlanImage}
+                        x={0}
+                        y={0}
+                        listening
+                      />
+                    )}
 
-                  {isCalibrating && calibrationLine && (
-                    <CalibrationLine line={calibrationLine} />
-                  )}
+                    {isCalibrating && calibrationLine && (
+                      <CalibrationLine line={calibrationLine} />
+                    )}
 
-                  {furnitureForCanvas.map((item) => (
-                    <FurnitureItem
-                      key={item.id}
-                      item={item}
-                      isSelected={item.id === selectedId}
-                      onSelect={() => setSelectedId(item.id)}
-                      onDelete={() => deleteFurniture(item.id)}
-                      onDragEnd={(e) => handleDragEnd(item.id, e)}
-                      onTransformEnd={(e) => handleTransformEnd(item.id, e)}
-                    />
-                  ))}
+                    {furnitureForCanvas.map((item) => (
+                      <FurnitureItem
+                        key={item.id}
+                        item={item}
+                        isSelected={item.id === selectedId}
+                        onSelect={() => setSelectedId(item.id)}
+                        onDelete={() => deleteFurniture(item.id)}
+                        onDragEnd={(e) => handleDragEnd(item.id, e)}
+                        onTransformEnd={(e) => handleTransformEnd(item.id, e)}
+                      />
+                    ))}
+                  </Group>
                 </Layer>
               </Stage>
             </div>
@@ -578,6 +758,8 @@ function App() {
               onUpdateFurnitureColor={updateFurnitureColor}
               onDeleteFurniture={deleteFurniture}
               isCalibrated={!!pixelsPerInch}
+              canvasViewLocked={canvasViewLocked}
+              onToggleCanvasViewLock={() => setCanvasViewLocked((v) => !v)}
             />
           </aside>
         </div>
@@ -596,6 +778,7 @@ function App() {
           <div className="upload-prompt">
             <h2>Upload a Floor Plan to Get Started</h2>
             <p>Drag and drop an image here or click the button below</p>
+            <p className="upload-hint">Right-click to Pan, Ctrl+Scroll to Zoom.</p>
             <button type="button" onClick={() => fileInputRef.current?.click()} className="upload-btn">
               Choose Floor Plan Image
             </button>

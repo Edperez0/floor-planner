@@ -232,6 +232,13 @@
   font-size: 16px;
 }
 
+.upload-hint {
+  margin: -18px 0 24px;
+  font-size: 14px;
+  color: #546e7a;
+  line-height: 1.5;
+}
+
 .upload-btn {
   padding: 15px 30px;
   background: #3498db;
