@@ -8,9 +8,14 @@ const TOOLBAR_Y = 38;
 const CORNER = 9;
 const CORNER_STROKE = 1.5;
 
+/** Stable refs — new function/array instances each render force react-konva to refresh the Transformer (major drag jank). */
+const BOUND_BOX_PASSTHROUGH = (oldBox, newBox) => newBox;
+const ROTATION_SNAPS = [0, 45, 90, 135, 180, 225, 270, 315];
+const BORDER_DASH = [5, 5];
+
 /**
- * While dragging, we omit x/y props so parent re-renders (pan/zoom) cannot reset the Konva node
- * to stale React state — that was causing visible lag / cursor trailing.
+ * While dragging, omit x/y props so any stray React reconciliation cannot snap the node back to stale state.
+ * Transformer + layer batchDraw on dragMove keeps selection chrome in sync with the node (Konva otherwise can lag a frame).
  */
 function FurnitureItemInner({
   item,
@@ -22,8 +27,9 @@ function FurnitureItemInner({
   onDragEnd,
   onTransformEnd,
 }) {
-  const groupRef = useRef();
-  const trRef = useRef();
+  const groupRef = useRef(null);
+  const trRef = useRef(null);
+  const dragMoveRafRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
@@ -65,15 +71,18 @@ function FurnitureItemInner({
     input.click();
   }, [fill, onColorChange]);
 
-  const handleToolbarColor = (e) => {
+  const handleToolbarColor = useCallback((e) => {
     e.cancelBubble = true;
     openSystemColorPicker();
-  };
+  }, [openSystemColorPicker]);
 
-  const handleToolbarDeselect = (e) => {
-    e.cancelBubble = true;
-    onDeselect();
-  };
+  const handleToolbarDeselect = useCallback(
+    (e) => {
+      e.cancelBubble = true;
+      onDeselect();
+    },
+    [onDeselect]
+  );
 
   const w = item.width;
   const h = item.height;
@@ -84,16 +93,34 @@ function FurnitureItemInner({
 
   const interactive = !panMode;
 
+  /** Konva skips Transformer.update() while the target node is dragging — force refresh so the box/handles track the move. */
+  const flushTransformerWithLayer = useCallback(() => {
+    trRef.current?.forceUpdate();
+  }, []);
+
+  const handleDragMove = useCallback(() => {
+    if (dragMoveRafRef.current != null) return;
+    dragMoveRafRef.current = requestAnimationFrame(() => {
+      dragMoveRafRef.current = null;
+      flushTransformerWithLayer();
+    });
+  }, [flushTransformerWithLayer]);
+
   const handleDragStart = useCallback(() => {
     setDragging(true);
   }, []);
 
   const handleDragEnd = useCallback(
     (e) => {
+      if (dragMoveRafRef.current != null) {
+        cancelAnimationFrame(dragMoveRafRef.current);
+        dragMoveRafRef.current = null;
+      }
       onDragEnd(e);
+      flushTransformerWithLayer();
       setDragging(false);
     },
-    [onDragEnd]
+    [onDragEnd, flushTransformerWithLayer]
   );
 
   const positionProps = dragging ? {} : { x: item.x, y: item.y };
@@ -113,6 +140,7 @@ function FurnitureItemInner({
         onClick={onSelect}
         onTap={onSelect}
         onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onTransformEnd={onTransformEnd}
       >
@@ -125,6 +153,8 @@ function FurnitureItemInner({
           stroke={isSelected ? 'rgba(30, 41, 59, 0.2)' : '#000'}
           strokeWidth={1}
           hitStrokeWidth={14}
+          perfectDrawEnabled={false}
+          shadowForStrokeEnabled={false}
           shadowColor="black"
           shadowBlur={5}
           shadowOpacity={0.3}
@@ -152,6 +182,7 @@ function FurnitureItemInner({
               strokeWidth={CORNER_STROKE}
               lineCap="round"
               lineJoin="round"
+              perfectDrawEnabled={false}
             />
             <Line
               points={[w + CORNER, 0, w, 0, w, -CORNER]}
@@ -159,6 +190,7 @@ function FurnitureItemInner({
               strokeWidth={CORNER_STROKE}
               lineCap="round"
               lineJoin="round"
+              perfectDrawEnabled={false}
             />
             <Line
               points={[w + CORNER, h, w, h, w, h + CORNER]}
@@ -166,6 +198,7 @@ function FurnitureItemInner({
               strokeWidth={CORNER_STROKE}
               lineCap="round"
               lineJoin="round"
+              perfectDrawEnabled={false}
             />
             <Line
               points={[-CORNER, h, 0, h, 0, h + CORNER]}
@@ -173,6 +206,7 @@ function FurnitureItemInner({
               strokeWidth={CORNER_STROKE}
               lineCap="round"
               lineJoin="round"
+              perfectDrawEnabled={false}
             />
           </Group>
         )}
@@ -200,6 +234,7 @@ function FurnitureItemInner({
                 shadowColor="rgba(0,0,0,0.15)"
                 shadowBlur={4}
                 shadowOffsetY={1}
+                perfectDrawEnabled={false}
               />
               <Rect
                 x={4}
@@ -211,6 +246,7 @@ function FurnitureItemInner({
                 strokeWidth={1}
                 cornerRadius={2}
                 listening={false}
+                perfectDrawEnabled={false}
               />
             </Group>
             <Group
@@ -230,6 +266,7 @@ function FurnitureItemInner({
                 shadowColor="rgba(0,0,0,0.12)"
                 shadowBlur={4}
                 shadowOffsetY={1}
+                perfectDrawEnabled={false}
               />
               <Text
                 x={0}
@@ -252,14 +289,14 @@ function FurnitureItemInner({
           ref={trRef}
           listening={interactive}
           rotateEnabled
-          rotationSnaps={[0, 45, 90, 135, 180, 225, 270, 315]}
+          rotationSnaps={ROTATION_SNAPS}
           enabledAnchors={[]}
           borderEnabled
           borderStroke="#64748b"
           borderStrokeWidth={1}
-          borderDash={[5, 5]}
+          borderDash={BORDER_DASH}
           padding={8}
-          boundBoxFunc={(oldBox, newBox) => newBox}
+          boundBoxFunc={BOUND_BOX_PASSTHROUGH}
         />
       )}
     </>
