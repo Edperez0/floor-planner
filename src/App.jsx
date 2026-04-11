@@ -1139,6 +1139,20 @@ function App() {
                   </button>
                 </div>
               </div>
+              {!floorPlanUrl && !isDraggingFile && (
+                <div className="no-floorplan">
+                  <div className="upload-prompt">
+                    <h2>Upload a Floor Plan to Get Started</h2>
+                    <p>Drag and drop an image here or click the button below</p>
+                    <p className="upload-hint">
+                      Hold Spacebar or middle-click drag to pan the view. Ctrl+scroll to zoom.
+                    </p>
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="upload-btn">
+                      Choose Floor Plan Image
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <aside
@@ -1172,21 +1186,6 @@ function App() {
         <div className="drop-overlay">
           <div className="drop-message">
             <p>Drop floor plan image here</p>
-          </div>
-        </div>
-      )}
-
-      {!floorPlanUrl && !isDraggingFile && (
-        <div className="no-floorplan">
-          <div className="upload-prompt">
-            <h2>Upload a Floor Plan to Get Started</h2>
-            <p>Drag and drop an image here or click the button below</p>
-            <p className="upload-hint">
-              Hold Spacebar or middle-click drag to pan the view. Ctrl+scroll to zoom.
-            </p>
-            <button type="button" onClick={() => fileInputRef.current?.click()} className="upload-btn">
-              Choose Floor Plan Image
-            </button>
           </div>
         </div>
       )}
