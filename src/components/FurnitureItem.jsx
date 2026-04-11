@@ -139,8 +139,9 @@ function FurnitureItemInner({
   const fill = item.fillColor ?? defaultFillColorForType(item.type ?? '');
   const rw = item.realWidth ?? { feet: 0, inches: 0 };
   const rd = item.realDepth ?? { feet: 0, inches: 0 };
-  const w = Math.max(0, Number(item.width) || 0);
-  const h = Math.max(0, Number(item.height) || 0);
+  /** Min 1px so Konva Text/Transformer never get 0×0 bbox (can break selection chrome). */
+  const w = Math.max(1, Number(item.width) || 0);
+  const h = Math.max(1, Number(item.height) || 0);
   const rotation = Number(item.rotation);
   const rotationSafe = Number.isFinite(rotation) ? rotation : 0;
   const labelText = `${item.type ?? 'Item'}\n${rw.feet ?? 0}'${rw.inches ?? 0}" × ${rd.feet ?? 0}'${rd.inches ?? 0}"`;
@@ -148,14 +149,6 @@ function FurnitureItemInner({
   const stopPointerBubble = (e) => {
     e.cancelBubble = true;
   };
-
-  /** Prevent Stage pointer handlers (pan/surface) from seeing this event. */
-  const stopPointerFromReachingStage = useCallback((e) => {
-    e.cancelBubble = true;
-    if (e.evt && typeof e.evt.stopPropagation === 'function') {
-      e.evt.stopPropagation();
-    }
-  }, []);
 
   const handleInsetDelete = useCallback(
     (e) => {
@@ -241,6 +234,7 @@ function FurnitureItemInner({
     if (name !== 'rotater') return;
 
     const sz = anchor.width();
+    if (!(sz > 0)) return;
     anchor.cornerRadius(sz / 2);
     anchor.fill('#ffffff');
     anchor.stroke('rgba(15, 23, 42, 0.08)');
@@ -290,9 +284,6 @@ function FurnitureItemInner({
         offsetY={h / 2}
         listening={interactive}
         draggable={interactive}
-        onMouseDown={stopPointerFromReachingStage}
-        onTouchStart={stopPointerFromReachingStage}
-        onPointerDown={stopPointerFromReachingStage}
         onClick={onSelect}
         onTap={onSelect}
         onDragStart={handleDragStart}

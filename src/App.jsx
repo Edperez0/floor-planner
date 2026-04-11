@@ -719,11 +719,15 @@ function App() {
 
   /** True if Konva event target is a node under a Group named "furniture". */
   const eventTargetIsFurniture = useCallback((e) => {
-    let node = e.target;
-    while (node) {
-      const nm = typeof node.name === 'function' ? node.name() : '';
-      if (nm === 'furniture') return true;
-      node = node.getParent?.();
+    try {
+      let node = e.target;
+      while (node) {
+        const nm = typeof node.name === 'function' ? node.name() : '';
+        if (nm === 'furniture') return true;
+        node = node.getParent?.();
+      }
+    } catch {
+      return false;
     }
     return false;
   }, []);
