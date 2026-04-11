@@ -438,17 +438,6 @@ function App() {
     setCustomPresets((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
-  const updateCustomPresetColor = useCallback((id, fillColor) => {
-    const hex =
-      typeof fillColor === 'string' && /^#[0-9A-Fa-f]{6}$/.test(fillColor.trim())
-        ? fillColor.trim()
-        : null;
-    if (!hex) return;
-    setCustomPresets((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, color: hex } : p))
-    );
-  }, []);
-
   const hasCanvasContent = !!floorPlanUrl || furniture.length > 0;
 
   const confirmClearCanvas = useCallback(() => {
@@ -1028,7 +1017,6 @@ function App() {
               customPresets={customPresets}
               onSaveCustomPreset={addCustomPreset}
               onDeleteCustomPreset={deleteCustomPreset}
-              onUpdateCustomPresetColor={updateCustomPresetColor}
               selectedFurniture={selectedFurniture}
               onUpdateFurniture={updateFurniture}
               onUpdateFurnitureColor={updateFurnitureColor}

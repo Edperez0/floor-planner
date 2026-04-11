@@ -31,7 +31,6 @@ function FurniturePanel({
   customPresets = [],
   onSaveCustomPreset,
   onDeleteCustomPreset,
-  onUpdateCustomPresetColor,
   selectedFurniture,
   onUpdateFurniture,
   onUpdateFurnitureColor,
@@ -47,7 +46,6 @@ function FurniturePanel({
   const [customFillColor, setCustomFillColor] = useState('#8B7355');
   const [selectedFillColor, setSelectedFillColor] = useState('#8B7355');
   const [selectedHexText, setSelectedHexText] = useState('#8B7355');
-  const [presetColors, setPresetColors] = useState(() => FURNITURE_PRESETS.map((p) => p.color));
 
   useEffect(() => {
     if (selectedFurniture) {
@@ -63,29 +61,18 @@ function FurniturePanel({
     }
   }, [selectedFurniture]);
 
-  const setPresetColorAt = (index, hex) => {
-    const n = normalizeHex(hex);
-    if (!n) return;
-    setPresetColors((prev) => {
-      const next = [...prev];
-      next[index] = n;
-      return next;
-    });
-  };
-
-  const handleAddPreset = (preset, index) => {
+  const handleAddPreset = (preset) => {
     if (!isCalibrated) {
       alert('Please calibrate the floor plan first!');
       return;
     }
-    const color = presetColors[index] ?? preset.color;
     onAddFurniture(
       preset.name,
       preset.width.feet,
       preset.width.inches,
       preset.depth.feet,
       preset.depth.inches,
-      color
+      preset.color
     );
   };
 
@@ -184,31 +171,23 @@ function FurniturePanel({
         <div className="presets-scroll" aria-label="Furniture preset list">
           <ul className="preset-list">
             {FURNITURE_PRESETS.map((preset, index) => (
-              <li key={preset.name + index} className="preset-row">
-                <label className="preset-swatch-label" title={`Color for ${preset.name}`}>
-                  <input
-                    type="color"
-                    className="preset-color-input"
-                    value={presetColors[index]}
-                    onChange={(e) => setPresetColorAt(index, e.target.value)}
-                    aria-label={`Choose default color for ${preset.name}`}
-                  />
-                  <span
-                    className="preset-swatch-disk"
-                    style={{ backgroundColor: presetColors[index] }}
-                    aria-hidden
-                  />
-                </label>
+              <li
+                key={preset.name + index}
+                className="preset-item-card"
+                style={{ backgroundColor: preset.color }}
+              >
                 <button
                   type="button"
-                  className="preset-place-btn"
-                  onClick={() => handleAddPreset(preset, index)}
+                  className="preset-item-place"
+                  onClick={() => handleAddPreset(preset)}
                   disabled={!isCalibrated}
                 >
-                  <span className="preset-name">{preset.name}</span>
-                  <span className="preset-dims">
-                    {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
-                  </span>
+                  <div className="preset-item-bubble">
+                    <span className="preset-name">{preset.name}</span>
+                    <span className="preset-dims">
+                      {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
+                    </span>
+                  </div>
                 </button>
               </li>
             ))}
@@ -229,31 +208,23 @@ function FurniturePanel({
           ) : (
             <ul className="preset-list">
               {customPresets.map((preset) => (
-                <li key={preset.id} className="preset-row">
-                  <label className="preset-swatch-label" title={`Color for ${preset.name}`}>
-                    <input
-                      type="color"
-                      className="preset-color-input"
-                      value={preset.color}
-                      onChange={(e) => onUpdateCustomPresetColor(preset.id, e.target.value)}
-                      aria-label={`Choose default color for ${preset.name}`}
-                    />
-                    <span
-                      className="preset-swatch-disk"
-                      style={{ backgroundColor: preset.color }}
-                      aria-hidden
-                    />
-                  </label>
+                <li
+                  key={preset.id}
+                  className="preset-item-card preset-item-card--with-delete"
+                  style={{ backgroundColor: preset.color }}
+                >
                   <button
                     type="button"
-                    className="preset-place-btn"
+                    className="preset-item-place"
                     onClick={() => handleAddCustomPresetRow(preset)}
                     disabled={!isCalibrated}
                   >
-                    <span className="preset-name">{preset.name}</span>
-                    <span className="preset-dims">
-                      {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
-                    </span>
+                    <div className="preset-item-bubble">
+                      <span className="preset-name">{preset.name}</span>
+                      <span className="preset-dims">
+                        {preset.width.feet}'{preset.width.inches}" × {preset.depth.feet}'{preset.depth.inches}"
+                      </span>
+                    </div>
                   </button>
                   <button
                     type="button"
